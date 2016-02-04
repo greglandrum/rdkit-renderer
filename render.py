@@ -47,6 +47,20 @@ def _render(mol,renderer,size=(150,100),**kwargs):
     sz = int(request.values.get('w',size[0])),int(request.values.get('h',size[1]))
     return renderer(mol,molSize=sz,**kwargs)
 
+@app.route('/mol_to_png/mol.png', methods=['GET', 'POST'])
+def mol_to_png():
+    molblock = request.values.get('mol')
+    m = Chem.MolFromMolBlock(molblock)
+    response = make_response(_render(m,_moltopng))
+    response.headers['Content-Type'] = 'image/png'
+    return response
+@app.route('/mol_to_svg/mol.svg', methods=['GET', 'POST'])
+def mol_to_svg():
+    molblock = request.values.get('mol')
+    m = Chem.MolFromMolBlock(molblock)
+    response = make_response(_render(m,_moltosvg))
+    return response
+
 @app.route('/smiles_to_png/<smiles>.png', methods=['GET', 'POST'])
 def smiles_to_png(smiles):
     m = Chem.MolFromSmiles(smiles)
