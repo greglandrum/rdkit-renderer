@@ -44,17 +44,17 @@ def _moltopng(mol,molSize=(450,200),kekulize=True,drawer=None,**kwargs):
     return drawer.GetDrawingText()
 
 def _render(mol,renderer,size=(150,100),**kwargs):
-    sz = int(request.args.get('w',size[0])),int(request.args.get('h',size[1]))
+    sz = int(request.values.get('w',size[0])),int(request.values.get('h',size[1]))
     return renderer(mol,molSize=sz,**kwargs)
 
-@app.route('/smiles_to_png/<smiles>.png')
+@app.route('/smiles_to_png/<smiles>.png', methods=['GET', 'POST'])
 def smiles_to_png(smiles):
     m = Chem.MolFromSmiles(smiles)
     response = make_response(_render(m,_moltopng))
     response.headers['Content-Type'] = 'image/png'
     return response
 
-@app.route('/smiles_to_svg/<smiles>.svg')
+@app.route('/smiles_to_svg/<smiles>.svg', methods=['GET', 'POST'])
 def smiles_to_svg(smiles):
     m = Chem.MolFromSmiles(smiles)
     response = make_response(_render(m,_moltosvg))
