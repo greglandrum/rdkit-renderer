@@ -1,0 +1,68 @@
+from flask import Flask,make_response,request
+from rdkit import Chem
+from rdkit import rdBase
+from rdkit.Chem import rdDepictor
+from rdkit.Chem.Draw import rdMolDraw2D
+import json
+
+app = Flask(__name__)
+
+@app.route('/')
+def health():
+    res = dict(rdkitVersion=rdBase.rdkitVersion,boostVersion=rdBase.boostVersion)
+    return json.dumps(res)
+
+@app.route('/canon_smiles/<smiles>')
+def canon_smiles(smiles):
+    return Chem.CanonSmiles(smiles)
+
+def _prepareMol(mol,kekulize):
+    mc = Chem.Mol(mol.ToBinary())
+    if kekulize:
+        try:
+            Chem.Kekulize(mc)
+        except:
+            mc = Chem.Mol(mol.ToBinary())
+    if not mc.GetNumConformers():
+        rdDepictor.Compute2DCoords(mc)
+    return mc
+def _moltosvg(mol,molSize=(450,200),kekulize=True,drawer=None,**kwargs):
+    mc = _prepareMol(mol,kekulize)
+    if drawer is None:
+        drawer = rdMolDraw2D.MolDraw2DSVG(molSize[0],molSize[1])
+    drawer.DrawMolecule(mc,**kwargs)
+    drawer.FinishDrawing()
+    svg = drawer.GetDrawingText()
+    #return svg
+    return svg.replace('svg:','')
+def _moltopng(mol,molSize=(450,200),kekulize=True,drawer=None,**kwargs):
+    mc = _prepareMol(mol,kekulize)
+    if drawer is None:
+        drawer = rdMolDraw2D.MolDraw2DCairo(molSize[0],molSize[1])
+    drawer.DrawMolecule(mc,**kwargs)
+    drawer.FinishDrawing()
+    return drawer.GetDrawingText()
+
+def _render(mol,renderer,size=(150,100),**kwargs):
+    sz = int(request.args.get('w',size[0])),int(request.args.get('h',size[1]))
+    return renderer(mol,molSize=sz,**kwargs)
+
+@app.route('/smiles_to_png/<smiles>.png')
+def smiles_to_png(smiles):
+    m = Chem.MolFromSmiles(smiles)
+    response = make_response(_render(m,_moltopng))
+    response.headers['Content-Type'] = 'image/png'
+    return response
+
+@app.route('/smiles_to_svg/<smiles>.svg')
+def smiles_to_svg(smiles):
+    m = Chem.MolFromSmiles(smiles)
+    response = make_response(_render(m,_moltosvg))
+    #response.headers['Content-Type'] = 'image/svg+xml' # SVG doesn't render properly in chrome if we send this
+    return response
+
+
+if __name__ == '__main__':
+    # FIX: turn this off pre-deployment
+    app.debug  = True
+    app.run()
