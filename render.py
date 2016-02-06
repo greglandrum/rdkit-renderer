@@ -1,3 +1,6 @@
+#
+#  Created by Greg Landrum (greg.landrum@t5informatics.com), Feb 2016
+#
 from flask import Flask,make_response,request
 from rdkit import Chem
 from rdkit import rdBase
