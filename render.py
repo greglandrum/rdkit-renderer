@@ -20,18 +20,8 @@ def canon_smiles(smiles):
     " returns canonical SMILES for an input SMILES "
     return Chem.CanonSmiles(smiles)
 
-def _prepareMol(mol,kekulize):
-    mc = Chem.Mol(mol.ToBinary())
-    if kekulize:
-        try:
-            Chem.Kekulize(mc)
-        except:
-            mc = Chem.Mol(mol.ToBinary())
-    if not mc.GetNumConformers():
-        rdDepictor.Compute2DCoords(mc)
-    return mc
 def _moltosvg(mol,molSize=(450,200),kekulize=True,drawer=None,**kwargs):
-    mc = _prepareMol(mol,kekulize)
+    mc = rdMolDraw2D.PrepareMolForDrawing(mol,kekulize=kekulize)
     if drawer is None:
         drawer = rdMolDraw2D.MolDraw2DSVG(molSize[0],molSize[1])
     drawer.DrawMolecule(mc,**kwargs)
@@ -40,7 +30,7 @@ def _moltosvg(mol,molSize=(450,200),kekulize=True,drawer=None,**kwargs):
     #return svg
     return svg.replace('svg:','')
 def _moltopng(mol,molSize=(450,200),kekulize=True,drawer=None,**kwargs):
-    mc = _prepareMol(mol,kekulize)
+    mc = rdMolDraw2D.PrepareMolForDrawing(mol,kekulize=kekulize)
     if drawer is None:
         drawer = rdMolDraw2D.MolDraw2DCairo(molSize[0],molSize[1])
     drawer.DrawMolecule(mc,**kwargs)
