@@ -42,7 +42,7 @@ def _molfromrequest():
     if 'smiles' in request.values:
         mol = Chem.MolFromSmiles(request.values.get('smiles'))
     elif 'mol' in request.values:
-        mol = Chem.MolFromSmiles(request.values.get('mol'))
+        mol = Chem.MolFromMolBlock(request.values.get('mol'))
     else:
         raise InvalidUsage("Neither 'smi' nor 'mol' present.", status_code=410)
     if mol is None:
