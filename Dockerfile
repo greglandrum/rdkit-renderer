@@ -16,6 +16,7 @@ RUN echo 'export PATH=/opt/conda/bin:$PATH' > /etc/profile.d/conda.sh && \
 ENV PATH /opt/conda/bin:$PATH
 ENV LANG C
 
+# actually do the conda install
 RUN conda config --add channels  https://conda.binstar.org/greglandrum
 RUN conda install -y rdkit gunicorn flask cairo_nox nomkl
 
