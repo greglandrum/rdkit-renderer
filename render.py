@@ -6,8 +6,10 @@ from rdkit import Chem
 from rdkit import rdBase
 from rdkit.Chem import rdDepictor
 from rdkit.Chem.Draw import rdMolDraw2D
-import json
+from io import StringIO
+import json,sys
 
+Chem.WrapLogs()
 app = Flask(__name__)
 
 # error handline example from the Flask docs
@@ -39,6 +41,8 @@ def health():
     return json.dumps(res)
 
 def _molfromrequest():
+    # get errors on stderr:
+    sio = sys.stderr = StringIO()
     if 'smiles' in request.values:
         mol = Chem.MolFromSmiles(request.values.get('smiles'))
     elif 'mol' in request.values:
@@ -46,7 +50,9 @@ def _molfromrequest():
     else:
         raise InvalidUsage("Neither 'smi' nor 'mol' present.", status_code=410)
     if mol is None:
-        raise InvalidUsage("Molecule could not be processed.", status_code=411)
+        errm = sio.getvalue()
+        errm = errm.replace('RDKit ERROR: \n','') # some errors leave blank lines
+        raise InvalidUsage("Molecule could not be processed. Error message was:\n%s"%errm, status_code=411)
     return mol
 
 @app.route('/canon_smiles', methods=['GET', 'POST'])
