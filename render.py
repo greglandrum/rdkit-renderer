@@ -48,7 +48,7 @@ def _molfromrequest():
     elif 'mol' in request.values:
         mol = Chem.MolFromMolBlock(request.values.get('mol'))
     else:
-        raise InvalidUsage("Neither 'smi' nor 'mol' present.", status_code=410)
+        raise InvalidUsage("Neither 'smiles' nor 'mol' present.", status_code=410)
     if mol is None:
         errm = sio.getvalue()
         errm = errm.replace('RDKit ERROR: \n','') # some errors leave blank lines
