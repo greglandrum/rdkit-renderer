@@ -43,16 +43,23 @@ def health():
 def _molfromrequest():
     # get errors on stderr:
     sio = sys.stderr = StringIO()
+    sanitize = int(request.values.get('sanitize',1))
+    removeHs = int(request.values.get('removeHs',1))
     if 'smiles' in request.values:
-        mol = Chem.MolFromSmiles(request.values.get('smiles'))
+        mol = Chem.MolFromSmiles(request.values.get('smiles'),sanitize=sanitize)
     elif 'mol' in request.values:
-        mol = Chem.MolFromMolBlock(request.values.get('mol'))
+        mol = Chem.MolFromMolBlock(request.values.get('mol'),sanitize=sanitize,removeHs=removeHs)
     else:
         raise InvalidUsage("Neither 'smiles' nor 'mol' present.", status_code=410)
     if mol is None:
         errm = sio.getvalue()
         errm = errm.replace('RDKit ERROR: \n','') # some errors leave blank lines
         raise InvalidUsage("Molecule could not be processed. Error message was:\n%s"%errm, status_code=411)
+    if not sanitize:
+        mol.UpdatePropertyCache(False)
+        Chem.FastFindRings(mol)
+        Chem.SetConjugation(mol)
+        Chem.SetHybridization(mol)
     return mol
 
 @app.route('/canon_smiles', methods=['GET', 'POST'])
@@ -62,7 +69,9 @@ def canon_smiles():
     return Chem.MolToSmiles(mol,True)
 
 def _moltosvg(mol,molSize=(450,200),kekulize=True,drawer=None,**kwargs):
-    mc = rdMolDraw2D.PrepareMolForDrawing(mol,kekulize=kekulize)
+    sanit = bool(int(request.values.get('sanitize',1)))
+    mc = rdMolDraw2D.PrepareMolForDrawing(mol,kekulize=kekulize&sanit,
+                                          addChiralHs=sanit)
     if drawer is None:
         drawer = rdMolDraw2D.MolDraw2DSVG(molSize[0],molSize[1])
     drawer.DrawMolecule(mc,**kwargs)
@@ -71,7 +80,9 @@ def _moltosvg(mol,molSize=(450,200),kekulize=True,drawer=None,**kwargs):
     #return svg
     return svg.replace('svg:','')
 def _moltopng(mol,molSize=(450,200),kekulize=True,drawer=None,**kwargs):
-    mc = rdMolDraw2D.PrepareMolForDrawing(mol,kekulize=kekulize)
+    sanit = bool(int(request.values.get('sanitize',1)))
+    mc = rdMolDraw2D.PrepareMolForDrawing(mol,kekulize=kekulize&sanit,
+                                          addChiralHs=sanit)
     if drawer is None:
         drawer = rdMolDraw2D.MolDraw2DCairo(molSize[0],molSize[1])
     drawer.DrawMolecule(mc,**kwargs)
