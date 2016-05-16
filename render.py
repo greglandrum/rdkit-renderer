@@ -37,7 +37,7 @@ def handle_invalid_usage(error):
 
 @app.route('/')
 def health():
-    res = dict(rdkitVersion=rdBase.rdkitVersion,boostVersion=rdBase.boostVersion)
+    res = dict(rdkitVersion=rdBase.rdkitVersion,boostVersion=rdBase.boostVersion,pythonVersion=sys.version)
     return json.dumps(res)
 
 def _molfromrequest():
