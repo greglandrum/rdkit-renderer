@@ -107,6 +107,27 @@ def to_svg():
     response = make_response(_render(mol,_moltosvg))
     return response
 
+def _gen3d_sdf(mol,**kwargs):
+    from rdkit.Chem import AllChem
+    minimize = int(request.values.get('minimize',0))
+    mh = Chem.AddHs(mol)
+    mh.SetProp("_Name","2D to 3D output")
+    cid=AllChem.EmbedMolecule(mh,enforceChirality=True,useExpTorsionAnglePrefs=True,
+                     useBasicKnowledge=True)
+    if cid<0:
+        raise InvalidUsage("Molecule could not be embedded.", status_code=418)
+    if minimize:
+        AllChem.MMFFOptimizeMolecule(mh)
+    res = Chem.MolToMolBlock(mh)
+    return res
+
+@app.route('/to_3d/mol.sdf', methods=['GET', 'POST'])
+def to_3d_sdf():
+    " returns a mol block for input data "
+    mol = _molfromrequest()
+    response = make_response(_gen3d_sdf(mol))
+    return response
+
 
 if __name__ == '__main__':
     # FIX: turn this off pre-deployment
