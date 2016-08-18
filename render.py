@@ -68,25 +68,45 @@ def canon_smiles():
     mol = _molfromrequest()
     return Chem.MolToSmiles(mol,True)
 
-def _moltosvg(mol,molSize=(450,200),kekulize=True,drawer=None,**kwargs):
+def _paramToList(text):
+    if not text:
+        return None
+    if text[-1] in ')]':
+        text = text[:-1]
+    if text[0] in '[(':
+        text = text[0:]
+    text = text.split(',')
+    return [int(x) for x in text]
+
+
+def _drawHelper(mol,kekulize,drawer,**kwargs):
     sanit = bool(int(request.values.get('sanitize',1)))
+    if 'highlightAtoms' not in kwargs:
+        tmp = _paramToList(request.values.get('highlightAtoms',None))
+        if tmp:
+            kwargs['highlightAtoms'] = tmp
+    if 'highlightBonds' not in kwargs:
+        tmp = _paramToList(request.values.get('highlightBonds',None))
+        if tmp:
+            kwargs['highlightBonds'] = tmp
+    if 'legend' not in kwargs:
+        kwargs['legend'] = request.values.get('legend','')
     mc = rdMolDraw2D.PrepareMolForDrawing(mol,kekulize=kekulize&sanit,
                                           addChiralHs=sanit)
+    drawer.DrawMolecule(mc,**kwargs)
+    drawer.FinishDrawing()
+
+def _moltosvg(mol,molSize=(450,200),kekulize=True,drawer=None,**kwargs):
     if drawer is None:
         drawer = rdMolDraw2D.MolDraw2DSVG(molSize[0],molSize[1])
-    drawer.DrawMolecule(mc,**kwargs)
-    drawer.FinishDrawing()
+    _drawHelper(mol,kekulize,drawer,**kwargs)
     svg = drawer.GetDrawingText()
-    #return svg
     return svg.replace('svg:','')
+
 def _moltopng(mol,molSize=(450,200),kekulize=True,drawer=None,**kwargs):
-    sanit = bool(int(request.values.get('sanitize',1)))
-    mc = rdMolDraw2D.PrepareMolForDrawing(mol,kekulize=kekulize&sanit,
-                                          addChiralHs=sanit)
     if drawer is None:
         drawer = rdMolDraw2D.MolDraw2DCairo(molSize[0],molSize[1])
-    drawer.DrawMolecule(mc,**kwargs)
-    drawer.FinishDrawing()
+    _drawHelper(mol,kekulize,drawer,**kwargs)
     return drawer.GetDrawingText()
 
 def _render(mol,renderer,size=(150,100),**kwargs):
