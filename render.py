@@ -61,6 +61,28 @@ def _molfromrequest():
         Chem.SetConjugation(mol)
         Chem.SetHybridization(mol)
     return mol
+def _queryfromrequest(suffix='_query'):
+    # get errors on stderr:
+    sio = sys.stderr = StringIO()
+    if 'smiles'+suffix in request.values:
+        mol = Chem.MolFromSmiles(request.values.get('smiles'+suffix),sanitize=False)
+        if mol is not None:
+            try:
+                Chem.SanitizeMol(mol)
+            except:
+                mol = None
+    elif 'smarts'+suffix in request.values:
+        mol = Chem.MolFromSmarts(request.values.get('smarts'+suffix))
+    elif 'mol'+suffix in request.values:
+        mol = Chem.MolFromMolBlock(request.values.get('mol'+suffix),removeHs=False)
+        mol = Chem.AdjustQueryProperties(mol)
+    else:
+        return None
+    if mol is None:
+        errm = sio.getvalue()
+        errm = errm.replace('RDKit ERROR: \n','') # some errors leave blank lines
+        raise InvalidUsage("Molecule could not be processed. Error message was:\n%s"%errm, status_code=411)
+    return mol
 
 @app.route('/canon_smiles', methods=['GET', 'POST'])
 def canon_smiles():
@@ -91,6 +113,17 @@ def _drawHelper(mol,kekulize,drawer,**kwargs):
             kwargs['highlightBonds'] = tmp
     if 'legend' not in kwargs:
         kwargs['legend'] = request.values.get('legend','')
+    if 'highlightSubstruct' not in kwargs:
+        if bool(int(request.values.get('highlightSubstruct',0))):
+            qmol = _queryfromrequest(suffix='_highlight')
+            if qmol is not None:
+                qMatches = mol.GetSubstructMatches(qmol)
+                highlights=kwargs.get('highlightAtoms',[])
+                for entry in qMatches:
+                    highlights.extend(list(entry))
+                if highlights:
+                    kwargs['highlightAtoms']=highlights
+
     mc = rdMolDraw2D.PrepareMolForDrawing(mol,kekulize=kekulize&sanit,
                                           addChiralHs=sanit)
     drawer.DrawMolecule(mc,**kwargs)
