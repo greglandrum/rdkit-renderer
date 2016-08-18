@@ -90,40 +90,69 @@ def canon_smiles():
     mol = _molfromrequest()
     return Chem.MolToSmiles(mol,True)
 
-def _paramToList(text):
+import json
+def _loadJSONParam(text):
     if not text:
         return None
-    if text[-1] in ')]':
-        text = text[:-1]
-    if text[0] in '[(':
-        text = text[0:]
-    text = text.split(',')
-    return [int(x) for x in text]
-
+    return json.loads(text)
 
 def _drawHelper(mol,kekulize,drawer,**kwargs):
     sanit = bool(int(request.values.get('sanitize',1)))
-    if 'highlightAtoms' not in kwargs:
-        tmp = _paramToList(request.values.get('highlightAtoms',None))
-        if tmp:
-            kwargs['highlightAtoms'] = tmp
-    if 'highlightBonds' not in kwargs:
-        tmp = _paramToList(request.values.get('highlightBonds',None))
-        if tmp:
-            kwargs['highlightBonds'] = tmp
+    for arg in ('highlightAtomColors', 'highlightBondColors'):
+        if arg not in kwargs:
+            tmp = _loadJSONParam(request.values.get(arg,None))
+            if tmp:
+                for k in list(tmp):
+                    tmp[int(k)] = tuple(tmp[k])
+                    del tmp[k]
+                kwargs[arg] = tmp
+    for arg in ('highlightAtoms','highlightBonds'):
+
+        if arg not in kwargs:
+            tmp = _loadJSONParam(request.values.get(arg,None))
+            if tmp:
+                kwargs[arg] = tmp
     if 'legend' not in kwargs:
         kwargs['legend'] = request.values.get('legend','')
     if 'highlightSubstruct' not in kwargs:
+        if 'highlightColor' not in kwargs:
+            hcolor = _loadJSONParam(request.values.get('highlightColor',None))
+            if hcolor:
+                highlightColor = tuple(hcolor)
+            else:
+                highlightColor = None
+        else:
+            highlightColor = kwargs['higlightColor']
+            del kwargs['higlightColor']
         if bool(int(request.values.get('highlightSubstruct',0))):
             qmol = _queryfromrequest(suffix='_highlight')
             if qmol is not None:
                 qMatches = mol.GetSubstructMatches(qmol)
                 highlights=kwargs.get('highlightAtoms',[])
+                if highlightColor is not None:
+                    highlightBonds=kwargs.get('highlightBonds',[])
+                else:
+                    highlightBonds = None
+
                 for entry in qMatches:
+                    if highlightColor is not None:
+                        had = kwargs.get('highlightAtomColors',{})
+                        for v in entry:
+                            had[v] = highlightColor
+                        kwargs['highlightAtomColors'] = had
+
+                        hbd = kwargs.get('highlightBondColors',{})
+                        emap = dict(enumerate(entry))
+                        for bond in qmol.GetBonds():
+                            mbond = mol.GetBondBetweenAtoms(emap[bond.GetBeginAtomIdx()],emap[bond.GetEndAtomIdx()])
+                            highlightBonds.append(mbond.GetIdx())
+                            hbd[mbond.GetIdx()] = highlightColor
+                        kwargs['highlightBondColors'] = hbd
                     highlights.extend(list(entry))
                 if highlights:
                     kwargs['highlightAtoms']=highlights
-
+                    if highlightBonds is not None:
+                        kwargs['highlightBonds']=highlightBonds
     mc = rdMolDraw2D.PrepareMolForDrawing(mol,kekulize=kekulize&sanit,
                                           addChiralHs=sanit)
     drawer.DrawMolecule(mc,**kwargs)
