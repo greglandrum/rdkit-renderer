@@ -2,6 +2,11 @@
 #  Created by Greg Landrum (greg.landrum@t5informatics.com), Feb 2016
 #
 from flask import Flask,make_response,request,jsonify
+try:
+    from flasgger import Swagger
+except ImportError:
+    Swagger = None
+
 from rdkit import Chem
 from rdkit import rdBase
 from rdkit.Chem import rdDepictor
@@ -11,6 +16,8 @@ import json,sys
 
 Chem.WrapLogs()
 app = Flask(__name__)
+if Swagger is not None:
+    Swagger(app)
 
 # error handline example from the Flask docs
 # (http://flask.pocoo.org/docs/0.10/patterns/apierrors/)
@@ -37,6 +44,27 @@ def handle_invalid_usage(error):
 
 @app.route('/')
 def health():
+    '''
+    Simple health check call
+    ---
+    responses:
+      500:
+        description: Error!
+      200:
+        description: Everything is fine
+        schema:
+          id: what?
+          properties:
+            rdkitVersion:
+              type: string
+              description: version of the RDKit being used
+            boostVersion:
+              type: string
+              description: The version of boost being used
+            pythonVersion:
+              type: string
+              description: The version of python being used
+    '''
     res = dict(rdkitVersion=rdBase.rdkitVersion,boostVersion=rdBase.boostVersion,pythonVersion=sys.version)
     return json.dumps(res)
 
@@ -49,6 +77,7 @@ def _molfromrequest():
         mol = Chem.MolFromSmiles(request.values.get('smiles'),sanitize=sanitize)
     elif 'mol' in request.values:
         mol = Chem.MolFromMolBlock(request.values.get('mol'),sanitize=sanitize,removeHs=removeHs)
+        print(request.values.get('mol'))
     else:
         raise InvalidUsage("Neither 'smiles' nor 'mol' present.", status_code=410)
     if mol is None:
@@ -86,9 +115,39 @@ def _queryfromrequest(suffix='_query'):
 
 @app.route('/canon_smiles', methods=['GET', 'POST'])
 def canon_smiles():
-    " returns canonical SMILES for input data "
+    '''
+    Returns the canonical SMILES for a molecule
+    ---
+    parameters:
+      - name: smiles
+        in: query
+        type: string
+        required: false
+        description: input SMILES. Provide either this or mol
+      - name: mol
+        in: query
+        type: string
+        required: false
+        description: input CTAB. Provide either this or smiles
+
+    responses:
+      500:
+        description: Error!
+      410:
+        description: no molecule data provided
+      411:
+        description: input molecule could not be processed
+      200:
+        description: Everything is fine
+        schema:
+          id: what?
+          properties:
+            smiles:
+              type: string
+              description: canonical SMILES
+    '''
     mol = _molfromrequest()
-    return Chem.MolToSmiles(mol,True)
+    return json.dumps(dict(smiles=Chem.MolToSmiles(mol,True)))
 
 import json
 def _loadJSONParam(text):
@@ -177,16 +236,133 @@ def _render(mol,renderer,size=(150,100),**kwargs):
 
 @app.route('/to_img/mol.png', methods=['GET', 'POST'])
 def to_png():
-    " returns a PNG for input data "
+    """
+    Returns a PNG rendering of a molecule
+    ---
+    parameters:
+      - name: smiles
+        in: query
+        type: string
+        required: false
+        description: input SMILES. Provide either this or mol
+      - name: mol
+        in: query
+        type: string
+        required: false
+        description: input CTAB. Provide either this or smiles
+      - name: w
+        in: query
+        type: integer
+        required: false
+        default: 150
+        description: image width
+      - name: h
+        in: query
+        type: integer
+        required: false
+        default: 100
+        description: image height
+      - name: legend
+        in: query
+        type: string
+        required: false
+        description: text to be displayed beneath the molecule
+      - name: highlightAtoms
+        in: query
+        type: array
+        items:
+            type: integer
+            description: indices (0-based) of the atoms to highlight
+        required: false
+        description: atoms to be highlighted (as a JSON array)
+      - name: highlightBonds
+        in: query
+        type: array
+        items:
+            type: integer
+            description: indices (0-based) of the bonds to highlight
+        required: false
+        description: bonds to be highlighted (as a JSON array)
+    produces:
+        image/png
+    responses:
+      500:
+        description: Error!
+      410:
+        description: no molecule data provided
+      411:
+        description: input molecule could not be processed
+      200:
+        description: Everything is fine
+    """
     mol = _molfromrequest()
     response = make_response(_render(mol,_moltopng))
     response.headers['Content-Type'] = 'image/png'
     return response
 @app.route('/to_img/mol.svg', methods=['GET', 'POST'])
 def to_svg():
-    " returns an SVG for input data "
+    """
+    Returns a SVG rendering of a molecule
+    ---
+    parameters:
+      - name: smiles
+        in: query
+        type: string
+        required: false
+        description: input SMILES. Provide either this or mol
+      - name: mol
+        in: query
+        type: string
+        required: false
+        description: input CTAB. Provide either this or smiles
+      - name: w
+        in: query
+        type: integer
+        required: false
+        default: 150
+        description: image width
+      - name: h
+        in: query
+        type: integer
+        required: false
+        default: 100
+        description: image height
+      - name: legend
+        in: query
+        type: string
+        required: false
+        description: text to be displayed beneath the molecule
+      - name: highlightAtoms
+        in: query
+        type: array
+        items:
+            type: integer
+            description: indices (0-based) of the atoms to highlight
+        required: false
+        description: atoms to be highlighted (as a JSON array)
+      - name: highlightBonds
+        in: query
+        type: array
+        items:
+            type: integer
+            description: indices (0-based) of the bonds to highlight
+        required: false
+        description: bonds to be highlighted (as a JSON array)
+    produces:
+        image/svg+xml
+    responses:
+      500:
+        description: Error!
+      410:
+        description: no molecule data provided
+      411:
+        description: input molecule could not be processed
+      200:
+        description: Everything is fine
+    """
     mol = _molfromrequest()
     response = make_response(_render(mol,_moltosvg))
+    #response.headers['Content-Type'] = 'image/svg+xml'
     return response
 
 def _gen3d_sdf(mol,**kwargs):
