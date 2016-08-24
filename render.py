@@ -438,23 +438,84 @@ def to_svg():
 
 def _gen3d_sdf(mol,**kwargs):
     from rdkit.Chem import AllChem
-    minimize = int(request.values.get('minimize',0))
+    minimize = _stringtobool(request.values.get('minimize',False))
+    seed = int(request.values.get('randomSeed',-1))
+
     mh = Chem.AddHs(mol)
     mh.SetProp("_Name","2D to 3D output")
-    cid=AllChem.EmbedMolecule(mh,enforceChirality=True,useExpTorsionAnglePrefs=True,
+    cid=AllChem.EmbedMolecule(mh,randomSeed=seed,
+                              enforceChirality=True,useExpTorsionAnglePrefs=True,
                      useBasicKnowledge=True)
     if cid<0:
         raise InvalidUsage("Molecule could not be embedded.", status_code=418)
     if minimize:
-        AllChem.MMFFOptimizeMolecule(mh)
+        try:
+            AllChem.MMFFOptimizeMolecule(mh)
+        except:
+            raise InvalidUsage("Molecule could not be minimized.", status_code=419)
+
     res = Chem.MolToMolBlock(mh)
     return res
 
 @app.route('/to_3d/mol.sdf', methods=['GET', 'POST'])
 def to_3d_sdf():
-    " returns a mol block for input data "
+    """
+    Returns a SVG rendering of a molecule
+    ---
+    parameters:
+      - name: smiles
+        in: query
+        type: string
+        required: false
+        description: input SMILES. Provide either this or mol
+      - name: mol
+        in: query
+        type: string
+        required: false
+        description: input CTAB. Provide either this or smiles
+      - name: sanitize
+        in: query
+        type: boolean
+        required: false
+        default: true
+        description: determines whether or not the molecule is sanitized before being rendered
+      - name: removeHs
+        in: query
+        type: boolean
+        required: false
+        default: true
+        description: determines whether or not Hs are removed from the molecule before being rendered
+      - name: minimize
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not the generated structure is minimized (with the MMFF94 force field) before being returned
+      - name: randomSeed
+        in: query
+        type: integer
+        required: false
+        default: -1
+        description: provides a random number seed to be used in the embedding
+    produces:
+        chemical/x-mdl-molfile
+    responses:
+      500:
+        description: Error!
+      410:
+        description: no molecule data provided
+      411:
+        description: input molecule could not be processed
+      418:
+        description: embedding failed
+      419:
+        description: minimization failed
+      200:
+        description: Everything is fine
+    """
     mol = _molfromrequest()
     response = make_response(_gen3d_sdf(mol))
+    response.headers['Content-Type'] = 'chemical/x-mdl-molfile'
     return response
 
 
