@@ -159,7 +159,8 @@ def _loadJSONParam(text):
     if not text:
         return None
     return json.loads(text)
-
+_drawParams="""
+"""
 def _drawHelper(mol,kekulize,drawer,**kwargs):
     sanit = _stringtobool(request.values.get('sanitize',True))
     for arg in ('highlightAtomColors', 'highlightBondColors'):
@@ -171,7 +172,6 @@ def _drawHelper(mol,kekulize,drawer,**kwargs):
                     del tmp[k]
                 kwargs[arg] = tmp
     for arg in ('highlightAtoms','highlightBonds'):
-
         if arg not in kwargs:
             tmp = _loadJSONParam(request.values.get(arg,None))
             if tmp:
@@ -219,6 +219,10 @@ def _drawHelper(mol,kekulize,drawer,**kwargs):
                         kwargs['highlightBonds']=highlightBonds
     mc = rdMolDraw2D.PrepareMolForDrawing(mol,kekulize=kekulize&sanit,
                                           addChiralHs=sanit)
+    drawo = drawer.drawOptions()
+    if _stringtobool(request.values.get('dummiesAreAttachments',False)):
+        drawo.dummiesAreAttachments = True
+
     drawer.DrawMolecule(mc,**kwargs)
     drawer.FinishDrawing()
 
@@ -321,6 +325,12 @@ def to_png():
             description: indices (0-based) of the bonds to highlight
         required: false
         description: bonds to be highlighted (as a JSON array)
+      - name: dummiesAreAttachments
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: if true, dummy atoms are drawn as attachment points (with a squiggle line instead of an atom symbol)
     produces:
         image/png
     responses:
@@ -419,6 +429,12 @@ def to_svg():
             description: indices (0-based) of the bonds to highlight
         required: false
         description: bonds to be highlighted (as a JSON array)
+      - name: dummiesAreAttachments
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: if true, dummy atoms are drawn as attachment points (with a squiggle line instead of an atom symbol)
     produces:
         image/svg+xml
     responses:
