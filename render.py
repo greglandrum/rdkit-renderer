@@ -68,11 +68,16 @@ def health():
     res = dict(rdkitVersion=rdBase.rdkitVersion,boostVersion=rdBase.boostVersion,pythonVersion=sys.version)
     return json.dumps(res)
 
+def _stringtobool(text):
+    if text in ('0','false','False'):
+        return False
+    return bool(text)
+
 def _molfromrequest():
     # get errors on stderr:
     sio = sys.stderr = StringIO()
-    sanitize = int(request.values.get('sanitize',1))
-    removeHs = int(request.values.get('removeHs',1))
+    sanitize = _stringtobool(request.values.get('sanitize',True))
+    removeHs = _stringtobool(request.values.get('removeHs',True))
     if 'smiles' in request.values:
         mol = Chem.MolFromSmiles(request.values.get('smiles'),sanitize=sanitize)
     elif 'mol' in request.values:
@@ -156,7 +161,7 @@ def _loadJSONParam(text):
     return json.loads(text)
 
 def _drawHelper(mol,kekulize,drawer,**kwargs):
-    sanit = bool(int(request.values.get('sanitize',1)))
+    sanit = _stringtobool(request.values.get('sanitize',True))
     for arg in ('highlightAtomColors', 'highlightBondColors'):
         if arg not in kwargs:
             tmp = _loadJSONParam(request.values.get(arg,None))
@@ -183,7 +188,7 @@ def _drawHelper(mol,kekulize,drawer,**kwargs):
         else:
             highlightColor = kwargs['higlightColor']
             del kwargs['higlightColor']
-        if bool(int(request.values.get('highlightSubstruct',0))):
+        if _stringtobool(request.values.get('highlightSubstruct',False)):
             qmol = _queryfromrequest(suffix='_highlight')
             if qmol is not None:
                 qMatches = mol.GetSubstructMatches(qmol)
@@ -262,11 +267,44 @@ def to_png():
         required: false
         default: 100
         description: image height
+      - name: sanitize
+        in: query
+        type: boolean
+        required: false
+        default: true
+        description: determines whether or not the molecule is sanitized before being rendered
+      - name: removeHs
+        in: query
+        type: boolean
+        required: false
+        default: true
+        description: determines whether or not Hs are removed from the molecule before being rendered
       - name: legend
         in: query
         type: string
         required: false
         description: text to be displayed beneath the molecule
+      - name: highlightSubstruct
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: indicates that substructure highlighting should be done
+      - name: smiles_highlight
+        in: query
+        type: string
+        required: false
+        description: SMILES describing the query to highlight. If highlightSubstruct is set you should provide this, smarts_highlight, or mol_highlight
+      - name: smarts_highlight
+        in: query
+        type: string
+        required: false
+        description: SMARTS describing the query to highlight. If highlightSubstruct is set you should provide this, smiles_highlight, or mol_highlight
+      - name: mol_highlight
+        in: query
+        type: string
+        required: false
+        description: CTAB describing the query to highlight. If highlightSubstruct is set you should provide this, smarts_highlight, or smiles_highlight
       - name: highlightAtoms
         in: query
         type: array
@@ -327,11 +365,44 @@ def to_svg():
         required: false
         default: 100
         description: image height
+      - name: sanitize
+        in: query
+        type: boolean
+        required: false
+        default: true
+        description: determines whether or not the molecule is sanitized before being rendered
+      - name: removeHs
+        in: query
+        type: boolean
+        required: false
+        default: true
+        description: determines whether or not Hs are removed from the molecule before being rendered
       - name: legend
         in: query
         type: string
         required: false
         description: text to be displayed beneath the molecule
+      - name: highlightSubstruct
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: indicates that substructure highlighting should be done
+      - name: smiles_highlight
+        in: query
+        type: string
+        required: false
+        description: SMILES describing the query to highlight. If highlightSubstruct is set you should provide this, smarts_highlight, or mol_highlight
+      - name: smarts_highlight
+        in: query
+        type: string
+        required: false
+        description: SMARTS describing the query to highlight. If highlightSubstruct is set you should provide this, smiles_highlight, or mol_highlight
+      - name: mol_highlight
+        in: query
+        type: string
+        required: false
+        description: CTAB describing the query to highlight. If highlightSubstruct is set you should provide this, smarts_highlight, or smiles_highlight
       - name: highlightAtoms
         in: query
         type: array
