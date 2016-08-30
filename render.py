@@ -161,8 +161,10 @@ def _loadJSONParam(text):
     return json.loads(text)
 _drawParams="""
 """
-def _drawHelper(mol,kekulize,drawer,**kwargs):
+def _drawHelper(mol,drawer,**kwargs):
     sanit = _stringtobool(request.values.get('sanitize',True))
+    kekulize = _stringtobool(request.values.get('kekulize',True))
+
     for arg in ('highlightAtomColors', 'highlightBondColors'):
         if arg not in kwargs:
             tmp = _loadJSONParam(request.values.get(arg,None))
@@ -226,17 +228,17 @@ def _drawHelper(mol,kekulize,drawer,**kwargs):
     drawer.DrawMolecule(mc,**kwargs)
     drawer.FinishDrawing()
 
-def _moltosvg(mol,molSize=(450,200),kekulize=True,drawer=None,**kwargs):
+def _moltosvg(mol,molSize=(450,200),drawer=None,**kwargs):
     if drawer is None:
         drawer = rdMolDraw2D.MolDraw2DSVG(molSize[0],molSize[1])
-    _drawHelper(mol,kekulize,drawer,**kwargs)
+    _drawHelper(mol,drawer,**kwargs)
     svg = drawer.GetDrawingText()
     return svg.replace('svg:','')
 
-def _moltopng(mol,molSize=(450,200),kekulize=True,drawer=None,**kwargs):
+def _moltopng(mol,molSize=(450,200),drawer=None,**kwargs):
     if drawer is None:
         drawer = rdMolDraw2D.MolDraw2DCairo(molSize[0],molSize[1])
-    _drawHelper(mol,kekulize,drawer,**kwargs)
+    _drawHelper(mol,drawer,**kwargs)
     return drawer.GetDrawingText()
 
 def _render(mol,renderer,size=(150,100),**kwargs):
@@ -271,6 +273,12 @@ def to_png():
         required: false
         default: 100
         description: image height
+      - name: kekulize
+        in: query
+        type: boolean
+        required: false
+        default: true
+        description: determines whether or not the molecule is kekulized before being rendered
       - name: sanitize
         in: query
         type: boolean
@@ -375,6 +383,12 @@ def to_svg():
         required: false
         default: 100
         description: image height
+      - name: kekulize
+        in: query
+        type: boolean
+        required: false
+        default: true
+        description: determines whether or not the molecule is kekulized before being rendered
       - name: sanitize
         in: query
         type: boolean
