@@ -20,6 +20,7 @@ ENV LANG C
 RUN conda config --add channels  https://conda.anaconda.org/greglandrum
 RUN conda install -y gunicorn flask cairo_nox nomkl
 RUN conda install -y rdkit boost=1.56
+RUN pip install flasgger
 COPY . /src
 
 EXPOSE 8000
