@@ -490,7 +490,7 @@ def _gen3d_sdf(mol,**kwargs):
 @app.route('/to_3d/mol.sdf', methods=['GET', 'POST'])
 def to_3d_sdf():
     """
-    Returns a SVG rendering of a molecule
+    Returns a 3D conformation for a molecule
     ---
     parameters:
       - name: smiles
