@@ -180,6 +180,8 @@ def _drawHelper(mol,drawer,**kwargs):
                 kwargs[arg] = tmp
     if 'legend' not in kwargs:
         kwargs['legend'] = request.values.get('legend','')
+    # if 'lw' not in kwargs and 'lw' in request.values:
+    #     kwargs['lw'] = int(request.values['lw'])
     if 'highlightSubstruct' not in kwargs:
         if 'highlightColor' not in kwargs:
             hcolor = _loadJSONParam(request.values.get('highlightColor',None))
@@ -225,6 +227,8 @@ def _drawHelper(mol,drawer,**kwargs):
     if _stringtobool(request.values.get('dummiesAreAttachments',False)):
         drawo.dummiesAreAttachments = True
 
+    # if 'lw' in kwargs:
+    #     drawer.SetLineWidth(int(lw))
     drawer.DrawMolecule(mc,**kwargs)
     drawer.FinishDrawing()
 
