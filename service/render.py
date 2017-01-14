@@ -477,9 +477,9 @@ def _gen3d_sdf(mol,**kwargs):
 
     mh = Chem.AddHs(mol)
     mh.SetProp("_Name","2D to 3D output")
-    cid=AllChem.EmbedMolecule(mh,randomSeed=seed,
-                              enforceChirality=True,useExpTorsionAnglePrefs=True,
-                     useBasicKnowledge=True)
+    ps = AllChem.ETKDG()
+    ps.randomSeed=seed
+    cid=AllChem.EmbedMolecule(mh,ps)
     if cid<0:
         raise InvalidUsage("Molecule could not be embedded.", status_code=418)
     if minimize:
@@ -488,6 +488,8 @@ def _gen3d_sdf(mol,**kwargs):
         except:
             raise InvalidUsage("Molecule could not be minimized.", status_code=419)
 
+    if not _stringtobool(request.values.get('returnHs',True)):
+        mh = Chem.RemoveHs(mh)
     res = Chem.MolToMolBlock(mh)
     return res
 
@@ -512,19 +514,25 @@ def to_3d_sdf():
         type: boolean
         required: false
         default: true
-        description: determines whether or not the molecule is sanitized before being rendered
+        description: determines whether or not the molecule is sanitized before being processed
       - name: removeHs
         in: query
         type: boolean
         required: false
         default: true
-        description: determines whether or not Hs are removed from the molecule before being rendered
+        description: determines whether or not Hs are removed from the input molecule. Hs will be added to the full molecule before generating the conformer.
+      - name: returnHs
+        in: query
+        type: boolean
+        required: false
+        default: true
+        description: determines whether or not Hs are present in the returned structure
       - name: minimize
         in: query
         type: boolean
         required: false
         default: false
-        description: determines whether or not the generated structure is minimized (with the MMFF94 force field) before being returned
+        description: determines whether or not the generated conformer is minimized (with the MMFF94 force field) before being returned
       - name: randomSeed
         in: query
         type: integer
