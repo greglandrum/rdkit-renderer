@@ -75,16 +75,19 @@ def _stringtobool(text):
 
 def _molfromrequest():
     # get errors on stderr:
-    sio = sys.stderr = StringIO()
-    sanitize = _stringtobool(request.values.get('sanitize',True))
-    removeHs = _stringtobool(request.values.get('removeHs',True))
-    if 'smiles' in request.values:
-        mol = Chem.MolFromSmiles(request.values.get('smiles'),sanitize=sanitize)
-    elif 'mol' in request.values:
-        mol = Chem.MolFromMolBlock(request.values.get('mol'),sanitize=sanitize,removeHs=removeHs)
-        print(request.values.get('mol'))
+    tgt = request.get_json()
+    if tgt is None:
+        tgt = request.values
+    sanitize = _stringtobool(tgt.get('sanitize',True))
+    removeHs = _stringtobool(tgt.get('removeHs',True))
+    if 'smiles' in tgt:
+        mol = Chem.MolFromSmiles(tgt.get('smiles'),sanitize=sanitize)
+    elif 'mol' in tgt:
+        mol = Chem.MolFromMolBlock(tgt.get('mol'),sanitize=sanitize,removeHs=removeHs)
     else:
         raise InvalidUsage("Neither 'smiles' nor 'mol' present.", status_code=410)
+
+    sio = sys.stderr = StringIO()
     if mol is None:
         errm = sio.getvalue()
         errm = errm.replace('RDKit ERROR: \n','') # some errors leave blank lines
@@ -97,18 +100,22 @@ def _molfromrequest():
     return mol
 def _queryfromrequest(suffix='_query'):
     # get errors on stderr:
+    tgt = request.get_json()
+    if tgt is None:
+        tgt = request.values
+
     sio = sys.stderr = StringIO()
-    if 'smiles'+suffix in request.values:
-        mol = Chem.MolFromSmiles(request.values.get('smiles'+suffix),sanitize=False)
+    if 'smiles'+suffix in tgt:
+        mol = Chem.MolFromSmiles(tgt.get('smiles'+suffix),sanitize=False)
         if mol is not None:
             try:
                 Chem.SanitizeMol(mol)
             except:
                 mol = None
-    elif 'smarts'+suffix in request.values:
-        mol = Chem.MolFromSmarts(request.values.get('smarts'+suffix))
-    elif 'mol'+suffix in request.values:
-        mol = Chem.MolFromMolBlock(request.values.get('mol'+suffix),removeHs=False)
+    elif 'smarts'+suffix in tgt:
+        mol = Chem.MolFromSmarts(tgt.get('smarts'+suffix))
+    elif 'mol'+suffix in tgt:
+        mol = Chem.MolFromMolBlock(tgt.get('mol'+suffix),removeHs=False)
         mol = Chem.AdjustQueryProperties(mol)
     else:
         return None
@@ -162,12 +169,15 @@ def _loadJSONParam(text):
 _drawParams="""
 """
 def _drawHelper(mol,drawer,**kwargs):
-    sanit = _stringtobool(request.values.get('sanitize',True))
-    kekulize = _stringtobool(request.values.get('kekulize',True))
+    tgt = request.get_json()
+    if tgt is None:
+        tgt = request.values
+    sanit = _stringtobool(tgt.get('sanitize',True))
+    kekulize = _stringtobool(tgt.get('kekulize',True))
 
     for arg in ('highlightAtomColors', 'highlightBondColors'):
         if arg not in kwargs:
-            tmp = _loadJSONParam(request.values.get(arg,None))
+            tmp = _loadJSONParam(tgt.get(arg,None))
             if tmp:
                 for k in list(tmp):
                     tmp[int(k)] = tuple(tmp[k])
@@ -175,16 +185,16 @@ def _drawHelper(mol,drawer,**kwargs):
                 kwargs[arg] = tmp
     for arg in ('highlightAtoms','highlightBonds'):
         if arg not in kwargs:
-            tmp = _loadJSONParam(request.values.get(arg,None))
+            tmp = _loadJSONParam(tgt.get(arg,None))
             if tmp:
                 kwargs[arg] = tmp
     if 'legend' not in kwargs:
-        kwargs['legend'] = request.values.get('legend','')
+        kwargs['legend'] = tgt.get('legend','')
     # if 'lw' not in kwargs and 'lw' in request.values:
     #     kwargs['lw'] = int(request.values['lw'])
     if 'highlightSubstruct' not in kwargs:
         if 'highlightColor' not in kwargs:
-            hcolor = _loadJSONParam(request.values.get('highlightColor',None))
+            hcolor = _loadJSONParam(tgt.get('highlightColor',None))
             if hcolor:
                 highlightColor = tuple(hcolor)
             else:
@@ -192,7 +202,7 @@ def _drawHelper(mol,drawer,**kwargs):
         else:
             highlightColor = kwargs['higlightColor']
             del kwargs['higlightColor']
-        if _stringtobool(request.values.get('highlightSubstruct',False)):
+        if _stringtobool(tgt.get('highlightSubstruct',False)):
             qmol = _queryfromrequest(suffix='_highlight')
             if qmol is not None:
                 qMatches = mol.GetSubstructMatches(qmol)
@@ -224,7 +234,7 @@ def _drawHelper(mol,drawer,**kwargs):
     mc = rdMolDraw2D.PrepareMolForDrawing(mol,kekulize=kekulize&sanit,
                                           addChiralHs=sanit)
     drawo = drawer.drawOptions()
-    if _stringtobool(request.values.get('dummiesAreAttachments',False)):
+    if _stringtobool(tgt.get('dummiesAreAttachments',False)):
         drawo.dummiesAreAttachments = True
 
     # if 'lw' in kwargs:
@@ -246,7 +256,10 @@ def _moltopng(mol,molSize=(450,200),drawer=None,**kwargs):
     return drawer.GetDrawingText()
 
 def _render(mol,renderer,size=(150,100),**kwargs):
-    sz = int(request.values.get('w',size[0])),int(request.values.get('h',size[1]))
+    tgt = request.get_json()
+    if tgt is None:
+        tgt = request.values
+    sz = int(tgt.get('w',size[0])),int(tgt.get('h',size[1]))
     return renderer(mol,molSize=sz,**kwargs)
 
 @app.route('/to_img/mol.png', methods=['GET', 'POST'])
@@ -472,8 +485,11 @@ def to_svg():
 
 def _gen3d_sdf(mol,**kwargs):
     from rdkit.Chem import AllChem
-    minimize = _stringtobool(request.values.get('minimize',False))
-    seed = int(request.values.get('randomSeed',-1))
+    tgt = request.get_json()
+    if tgt is None:
+        tgt = request.values
+    minimize = _stringtobool(tgt.get('minimize',False))
+    seed = int(tgt.get('randomSeed',-1))
 
     mh = Chem.AddHs(mol)
     mh.SetProp("_Name","2D to 3D output")
@@ -488,7 +504,7 @@ def _gen3d_sdf(mol,**kwargs):
         except:
             raise InvalidUsage("Molecule could not be minimized.", status_code=419)
 
-    if not _stringtobool(request.values.get('returnHs',True)):
+    if not _stringtobool(tgt.get('returnHs',True)):
         mh = Chem.RemoveHs(mh)
     res = Chem.MolToMolBlock(mh)
     return res
