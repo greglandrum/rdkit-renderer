@@ -20,8 +20,11 @@ ENV LANG C
 #RUN conda config --add channels  https://conda.anaconda.org/greglandrum
 RUN conda install -y gunicorn flask nomkl
 RUN conda install -c greglandrum -y nox
-RUN conda install -c greglandrum -y rdkit
 RUN conda install -c conda-forge -y flasgger
+
+ARG FORCE_REBUILD=unknown
+
+RUN FORCE_REBUILD=${FORCE_REBUILD} conda install -c greglandrum -y rdkit
 COPY . /src
 
 EXPOSE 8000
