@@ -26,7 +26,7 @@ RUN conda install -y flasgger
 
 ARG FORCE_REBUILD=unknown
 
-RUN FORCE_REBUILD=${FORCE_REBUILD} conda install -c rdkit/label/nightly -y rdkit
+RUN FORCE_REBUILD=${FORCE_REBUILD} conda install -y rdkit
 COPY . /src
 
 EXPOSE 8000
