@@ -266,11 +266,8 @@ def _drawHelper(mol, drawer, **kwargs):
                     kwargs['highlightAtoms'] = highlights
                     if highlightBonds is not None:
                         kwargs['highlightBonds'] = highlightBonds
-    from rdkit.Chem import rdCoordGen
-    rdCoordGen.AddCoords(mol)
-    mc = rdMolDraw2D.PrepareMolForDrawing(
-        mol, kekulize=kekulize & sanit, addChiralHs=sanit)
-    mc.SetProp("_Name", "temp")
+    from rdkit.Chem.Draw import rdDepictor
+    rdDepictor.SetPreferCoordGen(True)
     # print(Chem.MolToMolBlock(mc))
     drawo = drawer.drawOptions()
     if _stringtobool(tgt.get('dummiesAreAttachments', False)):
@@ -283,13 +280,38 @@ def _drawHelper(mol, drawer, **kwargs):
 
     # if 'lw' in kwargs:
     #     drawer.SetLineWidth(int(lw))
-    drawer.DrawMolecule(mc, **kwargs)
+    if _stringtobool(tgt.get('useGrid', '0')):
+        frags = []
+        for frag in Chem.GetMolFrags(mol, asMols=True):
+            frags.append(rdMolDraw2D.PrepareMolForDrawing(frag,
+                                                          kekulize=kekulize & sanit,
+                                                          addChiralHs=sanit))
+
+        drawer.DrawMolecules(frags)
+    else:
+        mc = rdMolDraw2D.PrepareMolForDrawing(
+            mol, kekulize=kekulize & sanit, addChiralHs=sanit)
+        mc.SetProp("_Name", "temp")
+        drawer.DrawMolecule(mc, **kwargs)
     drawer.FinishDrawing()
 
 
 def _moltosvg(mol, molSize=(450, 200), drawer=None, **kwargs):
     if drawer is None:
-        drawer = rdMolDraw2D.MolDraw2DSVG(molSize[0], molSize[1])
+        tgt = request.get_json()
+        if tgt is None:
+            tgt = request.values
+        if _stringtobool(tgt.get('useGrid', '0')):
+            print("grid")
+            nMols = len(Chem.GetMolFrags(mol))
+            nCols = int(tgt.get('molsPerRow', 3))
+            nRows = nMols // nCols
+            if nMols % nCols:
+                nRows += 1
+            drawer = rdMolDraw2D.MolDraw2DSVG(
+                molSize[0]*nCols, molSize[1]*nRows, molSize[0], molSize[1])
+        else:
+            drawer = rdMolDraw2D.MolDraw2DSVG(molSize[0], molSize[1])
     _drawHelper(mol, drawer, **kwargs)
     svg = drawer.GetDrawingText()
     return svg.replace('svg:', '')
@@ -297,7 +319,20 @@ def _moltosvg(mol, molSize=(450, 200), drawer=None, **kwargs):
 
 def _moltopng(mol, molSize=(450, 200), drawer=None, **kwargs):
     if drawer is None:
-        drawer = rdMolDraw2D.MolDraw2DCairo(molSize[0], molSize[1])
+        tgt = request.get_json()
+        if tgt is None:
+            tgt = request.values
+        if _stringtobool(tgt.get('useGrid', '0')):
+            print("grid")
+            nMols = len(Chem.GetMolFrags(mol))
+            nCols = int(tgt.get('molsPerRow', 3))
+            nRows = nMols // nCols
+            if nMols % nCols:
+                nRows += 1
+            drawer = rdMolDraw2D.MolDraw2DCairo(
+                molSize[0]*nCols, molSize[1]*nRows, molSize[0], molSize[1])
+        else:
+            drawer = rdMolDraw2D.MolDraw2DCairo(molSize[0], molSize[1])
     _drawHelper(mol, drawer, **kwargs)
     return drawer.GetDrawingText()
 
@@ -404,6 +439,18 @@ def to_png():
           required: false
           default: false
           description: if true, dummy atoms are drawn as attachment points (with a squiggle line instead of an atom symbol)
+        - name: useGrid
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: if true, draws multiple molecules using a grid
+        - name: molsPerRow
+          in: query
+          type: integer
+          required: false
+          default: 3
+          description: sets the number of columns in the grid
       produces:
           image/png
       responses:
@@ -516,6 +563,18 @@ def to_svg():
           required: false
           default: false
           description: if true, dummy atoms are drawn as attachment points (with a squiggle line instead of an atom symbol)
+        - name: useGrid
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: if true, draws multiple molecules using a grid
+        - name: molsPerRow
+          in: query
+          type: integer
+          required: false
+          default: 3
+          description: sets the number of columns in the grid
       produces:
           image/svg+xml
       responses:
