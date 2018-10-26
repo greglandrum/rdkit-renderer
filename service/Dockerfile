@@ -19,10 +19,10 @@ ENV LANG C
 # actually do the conda install
 #RUN conda config --add channels  https://conda.anaconda.org/greglandrum
 RUN conda install -y gunicorn flask nomkl
-RUN conda install -c rdkit -y nox
-RUN conda install -c rdkit -y cairo
 RUN conda config --append channels conda-forge
 RUN conda install -y flasgger
+RUN conda config --add channels rdkit
+RUN conda install -y nox cairo
 
 ARG FORCE_REBUILD=unknown
 
