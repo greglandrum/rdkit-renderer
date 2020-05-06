@@ -114,7 +114,7 @@ def _molfromrequest():
         errm = errm.replace('RDKit ERROR: \n', '')
         raise InvalidUsage("Molecule could not be processed. Error message was:\n%s" % errm,
                            status_code=411)
-    if not sanitize:
+    if not sanitize and not asRxn:
         mol.UpdatePropertyCache(False)
         Chem.FastFindRings(mol)
         Chem.SetConjugation(mol)
@@ -288,6 +288,8 @@ def _drawHelper(mol, drawer, **kwargs):
                                                           addChiralHs=sanit))
 
         drawer.DrawMolecules(frags)
+    elif _stringtobool(tgt.get('asRxn', False)):
+        drawer.DrawReaction(mol)
     else:
         mc = rdMolDraw2D.PrepareMolForDrawing(
             mol, kekulize=kekulize & sanit, addChiralHs=sanit)
@@ -341,6 +343,10 @@ def _render(mol, renderer, size=(150, 100), **kwargs):
     tgt = request.get_json()
     if tgt is None:
         tgt = request.values
+    asRxn = _stringtobool(tgt.get('asRxn', False))
+    if 'w' not in tgt and asRxn:
+      s0 = size[0]*(mol.GetNumReactantTemplates()+mol.GetNumProductTemplates()+1)
+      size = (s0,size[1])
     sz = int(tgt.get('w', size[0])), int(tgt.get('h', size[1]))
     return renderer(mol, molSize=sz, **kwargs)
 
@@ -439,6 +445,12 @@ def to_png():
           required: false
           default: false
           description: if true, dummy atoms are drawn as attachment points (with a squiggle line instead of an atom symbol)
+        - name: asRxn
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: if true, the input will be treated as a reaction, not a molecule
         - name: useGrid
           in: query
           type: boolean
