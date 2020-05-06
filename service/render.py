@@ -234,9 +234,12 @@ def _drawHelper(mol, drawer, **kwargs):
             else:
                 highlightColor = None
         else:
-            highlightColor = kwargs['higlightColor']
+            highlightColor = kwargs['highlightColor']
             del kwargs['higlightColor']
-        if _stringtobool(tgt.get('highlightSubstruct', False)):
+        if _stringtobool(tgt.get('highlightSubstruct', False)) or \
+          'smiles_highlight' in tgt or \
+          'smarts_highlight' in tgt or \
+          'mol_highlight' in tgt:
             qmol = _queryfromrequest(suffix='_highlight')
             if qmol is not None:
                 qMatches = mol.GetSubstructMatches(qmol)
@@ -277,6 +280,12 @@ def _drawHelper(mol, drawer, **kwargs):
         tmp = _loadJSONParam(tgt.get('backgroundColor', None))
 
         drawo.SetBackgroundColor(tuple)
+
+    if _stringtobool(tgt.get('atomIndices',False)):
+      drawo.addAtomIndices = True
+    if _stringtobool(tgt.get('bondIndices',False)):
+      drawo.addBondIndices = True
+
 
     # if 'lw' in kwargs:
     #     drawer.SetLineWidth(int(lw))
@@ -408,6 +417,18 @@ def to_png():
           required: false
           default: false
           description: indicates that substructure highlighting should be done
+        - name: atomIndicess
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: indicates that atom indices should be shown      
+        - name: bondIndices
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: indicates that bond indices should be shown
         - name: smiles_highlight
           in: query
           type: string
@@ -538,6 +559,18 @@ def to_svg():
           required: false
           default: false
           description: indicates that substructure highlighting should be done
+        - name: atomIndicess
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: indicates that atom indices should be shown      
+        - name: bondIndices
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: indicates that bond indices should be shown
         - name: smiles_highlight
           in: query
           type: string
@@ -575,6 +608,12 @@ def to_svg():
           required: false
           default: false
           description: if true, dummy atoms are drawn as attachment points (with a squiggle line instead of an atom symbol)
+        - name: asRxn
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: if true, the input will be treated as a reaction, not a molecule
         - name: useGrid
           in: query
           type: boolean
