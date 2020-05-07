@@ -114,7 +114,7 @@ def _molfromrequest():
         errm = errm.replace('RDKit ERROR: \n', '')
         raise InvalidUsage("Molecule could not be processed. Error message was:\n%s" % errm,
                            status_code=411)
-    if not sanitize:
+    if not sanitize and not asRxn:
         mol.UpdatePropertyCache(False)
         Chem.FastFindRings(mol)
         Chem.SetConjugation(mol)
@@ -197,11 +197,6 @@ def _loadJSONParam(text):
         return None
     return json.loads(text)
 
-
-_drawParams = """
-"""
-
-
 def _drawHelper(mol, drawer, **kwargs):
     tgt = request.get_json()
     if tgt is None:
@@ -234,9 +229,12 @@ def _drawHelper(mol, drawer, **kwargs):
             else:
                 highlightColor = None
         else:
-            highlightColor = kwargs['higlightColor']
+            highlightColor = kwargs['highlightColor']
             del kwargs['higlightColor']
-        if _stringtobool(tgt.get('highlightSubstruct', False)):
+        if _stringtobool(tgt.get('highlightSubstruct', False)) or \
+          'smiles_highlight' in tgt or \
+          'smarts_highlight' in tgt or \
+          'mol_highlight' in tgt:
             qmol = _queryfromrequest(suffix='_highlight')
             if qmol is not None:
                 qMatches = mol.GetSubstructMatches(qmol)
@@ -278,6 +276,12 @@ def _drawHelper(mol, drawer, **kwargs):
 
         drawo.SetBackgroundColor(tuple)
 
+    if _stringtobool(tgt.get('atomIndices',False)):
+      drawo.addAtomIndices = True
+    if _stringtobool(tgt.get('bondIndices',False)):
+      drawo.addBondIndices = True
+
+
     # if 'lw' in kwargs:
     #     drawer.SetLineWidth(int(lw))
     if _stringtobool(tgt.get('useGrid', '0')):
@@ -288,6 +292,8 @@ def _drawHelper(mol, drawer, **kwargs):
                                                           addChiralHs=sanit))
 
         drawer.DrawMolecules(frags)
+    elif _stringtobool(tgt.get('asRxn', False)):
+        drawer.DrawReaction(mol)
     else:
         mc = rdMolDraw2D.PrepareMolForDrawing(
             mol, kekulize=kekulize & sanit, addChiralHs=sanit)
@@ -314,7 +320,7 @@ def _moltosvg(mol, molSize=(450, 200), drawer=None, **kwargs):
             drawer = rdMolDraw2D.MolDraw2DSVG(molSize[0], molSize[1])
     _drawHelper(mol, drawer, **kwargs)
     svg = drawer.GetDrawingText()
-    return svg.replace('svg:', '')
+    return svg
 
 
 def _moltopng(mol, molSize=(450, 200), drawer=None, **kwargs):
@@ -341,6 +347,10 @@ def _render(mol, renderer, size=(150, 100), **kwargs):
     tgt = request.get_json()
     if tgt is None:
         tgt = request.values
+    asRxn = _stringtobool(tgt.get('asRxn', False))
+    if 'w' not in tgt and asRxn:
+      s0 = size[0]*(mol.GetNumReactantTemplates()+mol.GetNumProductTemplates()+1)
+      size = (s0,size[1])
     sz = int(tgt.get('w', size[0])), int(tgt.get('h', size[1]))
     return renderer(mol, molSize=sz, **kwargs)
 
@@ -402,6 +412,18 @@ def to_png():
           required: false
           default: false
           description: indicates that substructure highlighting should be done
+        - name: atomIndicess
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: indicates that atom indices should be shown      
+        - name: bondIndices
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: indicates that bond indices should be shown
         - name: smiles_highlight
           in: query
           type: string
@@ -439,6 +461,12 @@ def to_png():
           required: false
           default: false
           description: if true, dummy atoms are drawn as attachment points (with a squiggle line instead of an atom symbol)
+        - name: asRxn
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: if true, the input will be treated as a reaction, not a molecule
         - name: useGrid
           in: query
           type: boolean
@@ -526,6 +554,18 @@ def to_svg():
           required: false
           default: false
           description: indicates that substructure highlighting should be done
+        - name: atomIndicess
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: indicates that atom indices should be shown      
+        - name: bondIndices
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: indicates that bond indices should be shown
         - name: smiles_highlight
           in: query
           type: string
@@ -563,6 +603,12 @@ def to_svg():
           required: false
           default: false
           description: if true, dummy atoms are drawn as attachment points (with a squiggle line instead of an atom symbol)
+        - name: asRxn
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: if true, the input will be treated as a reaction, not a molecule
         - name: useGrid
           in: query
           type: boolean
