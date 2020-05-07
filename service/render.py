@@ -197,11 +197,6 @@ def _loadJSONParam(text):
         return None
     return json.loads(text)
 
-
-_drawParams = """
-"""
-
-
 def _drawHelper(mol, drawer, **kwargs):
     tgt = request.get_json()
     if tgt is None:
@@ -325,7 +320,7 @@ def _moltosvg(mol, molSize=(450, 200), drawer=None, **kwargs):
             drawer = rdMolDraw2D.MolDraw2DSVG(molSize[0], molSize[1])
     _drawHelper(mol, drawer, **kwargs)
     svg = drawer.GetDrawingText()
-    return svg.replace('svg:', '')
+    return svg
 
 
 def _moltopng(mol, molSize=(450, 200), drawer=None, **kwargs):
