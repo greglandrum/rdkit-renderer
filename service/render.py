@@ -282,6 +282,17 @@ def _drawHelper(mol, drawer, **kwargs):
       drawo.addBondIndices = True
 
 
+    if _stringtobool(tgt.get('includeStereoLabels', '0')):
+      from rdkit.Chem import rdCIPLabeler
+      rdCIPLabeler.AssignCIPLabels(mol)
+      for at in mol.GetAtoms():
+        if at.HasProp("_CIPCode"):
+          at.SetProp("atomNote",at.GetProp("_CIPCode"))
+      for bnd in mol.GetBonds():
+        if bnd.HasProp("_CIPCode"):
+          bnd.SetProp("bondNote",bnd.GetProp("_CIPCode"))
+
+
     # if 'lw' in kwargs:
     #     drawer.SetLineWidth(int(lw))
     if _stringtobool(tgt.get('useGrid', '0')):
@@ -479,6 +490,12 @@ def to_png():
           required: false
           default: 3
           description: sets the number of columns in the grid
+        - name: includeStereoLabels
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: if true, includes stereo labels in the drawing
       produces:
           image/png
       responses:
@@ -621,6 +638,12 @@ def to_svg():
           required: false
           default: 3
           description: sets the number of columns in the grid
+        - name: includeStereoLabels
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: if true, includes stereo labels in the drawing
       produces:
           image/svg+xml
       responses:

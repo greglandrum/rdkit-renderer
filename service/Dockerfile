@@ -9,9 +9,9 @@ RUN apt-get update --fix-missing && apt-get install -y \
   libc6
 
 RUN echo 'export PATH=/opt/conda/bin:$PATH' > /etc/profile.d/conda.sh && \
-  wget --quiet https://repo.continuum.io/miniconda/Miniconda3-4.7.12-Linux-x86_64.sh && \
-  /bin/bash /Miniconda3-4.7.12-Linux-x86_64.sh -b -p /opt/conda && \
-  rm Miniconda3-4.7.12-Linux-x86_64.sh
+  wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-py37_4.8.3-Linux-x86_64.sh && \
+  /bin/bash /Miniconda3-py37_4.8.3-Linux-x86_64.sh -b -p /opt/conda && \
+  rm Miniconda3-py37_4.8.3-Linux-x86_64.sh
 
 ENV PATH /opt/conda/bin:$PATH
 ENV LANG C
@@ -20,14 +20,15 @@ ENV LANG C
 #RUN conda config --add channels  https://conda.anaconda.org/greglandrum
 RUN conda config --set auto_update_conda false
 RUN conda install -y gunicorn flask nomkl
-RUN conda config --append channels conda-forge
-RUN conda install -y flasgger
-RUN conda install -y -c conda-forge cairo
-RUN conda install -y -c conda-forge rdkit
+# RUN conda config --append channels conda-forge
+RUN conda install -y conda-forge::flasgger
+# RUN conda install -y -c conda-forge cairo
+# RUN conda install -y -c conda-forge rdkit
+RUN conda install -y -c rdkit/label/nightly rdkit
 
 ARG FORCE_REBUILD=unknown
 
-RUN FORCE_REBUILD=${FORCE_REBUILD} conda install -y rdkit
+RUN FORCE_REBUILD=${FORCE_REBUILD} conda install -y -c rdkit/label/nightly rdkit
 COPY . /src
 
 EXPOSE 8000
