@@ -6,7 +6,8 @@ RUN apt-get update --fix-missing && apt-get install -y \
   wget \
   bzip2 \
   ca-certificates \
-  libc6
+  libc6 \
+  xorg-dev
 
 RUN echo 'export PATH=/opt/conda/bin:$PATH' > /etc/profile.d/conda.sh && \
   wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-py37_4.8.3-Linux-x86_64.sh && \
@@ -25,6 +26,7 @@ RUN conda install -y conda-forge::flasgger
 # RUN conda install -y -c conda-forge cairo
 # RUN conda install -y -c conda-forge rdkit
 RUN conda install -y -c rdkit/label/nightly rdkit
+RUN conda install conda-forge::cairo
 
 ARG FORCE_REBUILD=unknown
 
