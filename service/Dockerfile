@@ -25,12 +25,14 @@ RUN conda install -y gunicorn flask nomkl
 RUN conda install -y conda-forge::flasgger
 # RUN conda install -y -c conda-forge cairo
 # RUN conda install -y -c conda-forge rdkit
-RUN conda install -y -c rdkit/label/nightly rdkit
-RUN conda install conda-forge::cairo
+# RUN conda install -y -c rdkit/label/nightly rdkit
+# RUN conda install conda-forge::cairo
+RUN conda install -y conda-forge::rdkit
 
 ARG FORCE_REBUILD=unknown
 
-RUN FORCE_REBUILD=${FORCE_REBUILD} conda install -y -c rdkit/label/nightly rdkit
+#RUN FORCE_REBUILD=${FORCE_REBUILD} conda install -y -c rdkit/label/nightly rdkit
+RUN FORCE_REBUILD=${FORCE_REBUILD} conda install -y conda-forge::rdkit
 COPY . /src
 
 EXPOSE 8000
