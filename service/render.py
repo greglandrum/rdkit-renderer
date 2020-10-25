@@ -12,6 +12,7 @@ from rdkit import rdBase
 from rdkit.Chem import AllChem
 from rdkit.Chem import rdDepictor
 from rdkit.Chem.Draw import rdMolDraw2D
+from rdkit.Chem import rdAbbreviations
 from io import StringIO
 import json
 import sys
@@ -281,17 +282,13 @@ def _drawHelper(mol, drawer, **kwargs):
     if _stringtobool(tgt.get('bondIndices',False)):
       drawo.addBondIndices = True
 
+    if _stringtobool(tgt.get('useBW',False)):
+      drawo.useBWAtomPalette()
 
     if _stringtobool(tgt.get('includeStereoLabels', '0')):
       from rdkit.Chem import rdCIPLabeler
       rdCIPLabeler.AssignCIPLabels(mol)
-      for at in mol.GetAtoms():
-        if at.HasProp("_CIPCode"):
-          at.SetProp("atomNote",at.GetProp("_CIPCode"))
-      for bnd in mol.GetBonds():
-        if bnd.HasProp("_CIPCode"):
-          bnd.SetProp("bondNote",bnd.GetProp("_CIPCode"))
-
+      drawo.addStereoAnnotation = True
 
     # if 'lw' in kwargs:
     #     drawer.SetLineWidth(int(lw))
@@ -309,6 +306,12 @@ def _drawHelper(mol, drawer, **kwargs):
         mc = rdMolDraw2D.PrepareMolForDrawing(
             mol, kekulize=kekulize & sanit, addChiralHs=sanit)
         mc.SetProp("_Name", "temp")
+        if _stringtobool(tgt.get('collapseAbbreviations',False)) and \
+            len(Chem.GetMolSubstanceGroups(mc)):
+            mc = rdAbbreviations.CondenseAbbreviationSubstanceGroups(mc)
+        elif _stringtobool(tgt.get('findAbbreviations',False)):
+            mc = rdAbbreviations.CondenseMolAbbreviations(mc,rdAbbreviations.GetDefaultAbbreviations(),
+                                                          maxCoverage=float(tgt.get('maxAbbreviationCoverage',0.4)))
         drawer.DrawMolecule(mc, **kwargs)
     drawer.FinishDrawing()
 
@@ -496,6 +499,30 @@ def to_png():
           required: false
           default: false
           description: if true, includes stereo labels in the drawing
+        - name: useBW
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: if true, draws atoms and bonds in black and white
+        - name: condenseAbbreviations
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: if true, condenses any superatoms/abbreviations that are defined in the input
+        - name: findAbbreviations
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: if true, identifies and condenses any groups that can be abbreviated in the input
+        - name: maxAbbreviationCoverage
+          in: query
+          type: number
+          required: false
+          default: 0.4
+          description: the maximum fraction of the molecule that can be covered by an abbreviation with findAbbreviations is true
       produces:
           image/png
       responses:
@@ -644,6 +671,30 @@ def to_svg():
           required: false
           default: false
           description: if true, includes stereo labels in the drawing
+        - name: useBW
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: if true, draws atoms and bonds in black and white
+        - name: collapseAbbreviations
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: if true, collapses any superatoms/abbreviations that are defined in the input
+        - name: findAbbreviations
+          in: query
+          type: boolean
+          required: false
+          default: false
+          description: if true, identifies and collapses any groups that can be abbreviated in the input
+        - name: maxAbbreviationCoverage
+          in: query
+          type: number
+          required: false
+          default: 0.4
+          description: the maximum fraction of the molecule that can be covered by an abbreviation with findAbbreviations is true
       produces:
           image/svg+xml
       responses:
