@@ -70,7 +70,8 @@ def health():
                 type: string
                 description: The version of python being used
       '''
-    res = dict(rdkitVersion=rdBase.rdkitVersion, boostVersion=rdBase.boostVersion,
+    res = dict(rdkitVersion=rdBase.rdkitVersion,
+               boostVersion=rdBase.boostVersion,
                pythonVersion=sys.version)
     return json.dumps(res)
 
@@ -94,26 +95,28 @@ def _molfromrequest():
     isMol = True
     if 'smiles' in tgt:
         if asRxn:
-            mol = AllChem.ReactionFromSmarts(
-                tgt.get('smiles'), useSmiles=not asSmarts)
+            mol = AllChem.ReactionFromSmarts(tgt.get('smiles'),
+                                             useSmiles=not asSmarts)
         elif asSmarts:
             mol = Chem.MolFromSmarts(tgt.get('smiles'))
             sanitize = False
         else:
             mol = Chem.MolFromSmiles(tgt.get('smiles'), sanitize=sanitize)
     elif 'mol' in tgt:
-        mol = Chem.MolFromMolBlock(
-            tgt.get('mol'), sanitize=sanitize, removeHs=removeHs)
+        mol = Chem.MolFromMolBlock(tgt.get('mol'),
+                                   sanitize=sanitize,
+                                   removeHs=removeHs)
     else:
-        raise InvalidUsage(
-            "Neither 'smiles' nor 'mol' present.", status_code=410)
+        raise InvalidUsage("Neither 'smiles' nor 'mol' present.",
+                           status_code=410)
 
     if mol is None:
         errm = sio.getvalue()
         # some errors leave blank lines
         errm = errm.replace('RDKit ERROR: \n', '')
-        raise InvalidUsage("Molecule could not be processed. Error message was:\n%s" % errm,
-                           status_code=411)
+        raise InvalidUsage(
+            "Molecule could not be processed. Error message was:\n%s" % errm,
+            status_code=411)
     if not sanitize and not asRxn:
         mol.UpdatePropertyCache(False)
         Chem.FastFindRings(mol)
@@ -147,8 +150,9 @@ def _queryfromrequest(suffix='_query'):
         errm = sio.getvalue()
         # some errors leave blank lines
         errm = errm.replace('RDKit ERROR: \n', '')
-        raise InvalidUsage("Molecule could not be processed. Error message was:\n%s" % errm,
-                           status_code=411)
+        raise InvalidUsage(
+            "Molecule could not be processed. Error message was:\n%s" % errm,
+            status_code=411)
     return mol
 
 
@@ -196,6 +200,7 @@ def _loadJSONParam(text):
     if not text:
         return None
     return json.loads(text)
+
 
 def _drawHelper(mol, drawer, **kwargs):
     tgt = request.get_json()
@@ -254,8 +259,9 @@ def _drawHelper(mol, drawer, **kwargs):
                         hbd = kwargs.get('highlightBondColors', {})
                         emap = dict(enumerate(entry))
                         for bond in qmol.GetBonds():
-                            mbond = mol.GetBondBetweenAtoms(emap[bond.GetBeginAtomIdx()],
-                                                            emap[bond.GetEndAtomIdx()])
+                            mbond = mol.GetBondBetweenAtoms(
+                                emap[bond.GetBeginAtomIdx()],
+                                emap[bond.GetEndAtomIdx()])
                             highlightBonds.append(mbond.GetIdx())
                             hbd[mbond.GetIdx()] = highlightColor
                         kwargs['highlightBondColors'] = hbd
@@ -268,39 +274,45 @@ def _drawHelper(mol, drawer, **kwargs):
     rdDepictor.SetPreferCoordGen(True)
     # print(Chem.MolToMolBlock(mc))
     drawo = drawer.drawOptions()
-    for opt,default in (('dummiesAreAttachments',False),
-       ('comicMode',False),('addAtomIndices',False),('addBondIndices',False),
-       ('isotopeLabels',True),('addStereoAnnotation',False),
-       ('explicitMethyl',False),('includeChiralFlagLabel',False),
-       ('simplifiedStereoGroupLabel',False)):
-      setattr(drawo,opt,_stringtobool(tgt.get(opt,default)))
+    for opt, default in (('dummiesAreAttachments', False),
+                         ('comicMode', False), ('addAtomIndices', False),
+                         ('addBondIndices', False), ('isotopeLabels', True),
+                         ('addStereoAnnotation',
+                          False), ('explicitMethyl',
+                                   False), ('includeChiralFlagLabel', False),
+                         ('simplifiedStereoGroupLabel', False)):
+        setattr(drawo, opt, _stringtobool(tgt.get(opt, default)))
 
     if drawo.addStereoAnnotation:
-      Chem.FindMolChiralCenters(mol,force=True,useLegacyImplementation=False)
+        Chem.FindMolChiralCenters(mol,
+                                  force=True,
+                                  useLegacyImplementation=False)
 
     if 'backgroundColor' in tgt:
         tmp = _loadJSONParam(tgt.get('backgroundColor', None))
 
         drawo.SetBackgroundColor(tuple)
 
-    if _stringtobool(tgt.get('atomIndices',False)):
-      drawo.addAtomIndices = True
-    if _stringtobool(tgt.get('bondIndices',False)):
-      drawo.addBondIndices = True
+    if _stringtobool(tgt.get('atomIndices', False)):
+        drawo.addAtomIndices = True
+    if _stringtobool(tgt.get('bondIndices', False)):
+        drawo.addBondIndices = True
 
     if _stringtobool(tgt.get('useGrid', '0')):
         frags = []
         for frag in Chem.GetMolFrags(mol, asMols=True):
-            frags.append(rdMolDraw2D.PrepareMolForDrawing(frag,
-                                                          kekulize=kekulize & sanit,
-                                                          addChiralHs=sanit))
+            frags.append(
+                rdMolDraw2D.PrepareMolForDrawing(frag,
+                                                 kekulize=kekulize & sanit,
+                                                 addChiralHs=sanit))
 
         drawer.DrawMolecules(frags)
     elif _stringtobool(tgt.get('asRxn', False)):
         drawer.DrawReaction(mol)
     else:
-        mc = rdMolDraw2D.PrepareMolForDrawing(
-            mol, kekulize=kekulize & sanit, addChiralHs=sanit)
+        mc = rdMolDraw2D.PrepareMolForDrawing(mol,
+                                              kekulize=kekulize & sanit,
+                                              addChiralHs=sanit)
         mc.SetProp("_Name", "temp")
         drawer.DrawMolecule(mc, **kwargs)
     drawer.FinishDrawing()
@@ -317,8 +329,9 @@ def _moltosvg(mol, molSize=(450, 200), drawer=None, **kwargs):
             nRows = nMols // nCols
             if nMols % nCols:
                 nRows += 1
-            drawer = rdMolDraw2D.MolDraw2DSVG(
-                molSize[0]*nCols, molSize[1]*nRows, molSize[0], molSize[1])
+            drawer = rdMolDraw2D.MolDraw2DSVG(molSize[0] * nCols,
+                                              molSize[1] * nRows, molSize[0],
+                                              molSize[1])
         else:
             drawer = rdMolDraw2D.MolDraw2DSVG(molSize[0], molSize[1])
     _drawHelper(mol, drawer, **kwargs)
@@ -337,8 +350,9 @@ def _moltopng(mol, molSize=(450, 200), drawer=None, **kwargs):
             nRows = nMols // nCols
             if nMols % nCols:
                 nRows += 1
-            drawer = rdMolDraw2D.MolDraw2DCairo(
-                molSize[0]*nCols, molSize[1]*nRows, molSize[0], molSize[1])
+            drawer = rdMolDraw2D.MolDraw2DCairo(molSize[0] * nCols,
+                                                molSize[1] * nRows, molSize[0],
+                                                molSize[1])
         else:
             drawer = rdMolDraw2D.MolDraw2DCairo(molSize[0], molSize[1])
     _drawHelper(mol, drawer, **kwargs)
@@ -351,8 +365,9 @@ def _render(mol, renderer, size=(150, 100), **kwargs):
         tgt = request.values
     asRxn = _stringtobool(tgt.get('asRxn', False))
     if 'w' not in tgt and asRxn:
-      s0 = size[0]*(mol.GetNumReactantTemplates()+mol.GetNumProductTemplates()+1)
-      size = (s0,size[1])
+        s0 = size[0] * (mol.GetNumReactantTemplates() +
+                        mol.GetNumProductTemplates() + 1)
+        size = (s0, size[1])
     sz = int(tgt.get('w', size[0])), int(tgt.get('h', size[1]))
     return renderer(mol, molSize=sz, **kwargs)
 
@@ -499,6 +514,12 @@ def to_png():
         required: false
         default: false
         description: if true, dummy atoms are drawn as attachment points (with a squiggle line instead of an atom symbol)
+      - name: useGrid
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: if true molecule fragments are layed out on a grid
     produces:
         image/png
     responses:
@@ -659,6 +680,12 @@ def to_svg():
         required: false
         default: false
         description: if true, dummy atoms are drawn as attachment points (with a squiggle line instead of an atom symbol)
+      - name: useGrid
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: if true molecule fragments are layed out on a grid
     produces:
         image/svg+xml
     responses:
@@ -696,8 +723,8 @@ def _gen3d_sdf(mol, **kwargs):
         try:
             AllChem.MMFFOptimizeMolecule(mh)
         except:
-            raise InvalidUsage(
-                "Molecule could not be minimized.", status_code=419)
+            raise InvalidUsage("Molecule could not be minimized.",
+                               status_code=419)
 
     if not _stringtobool(tgt.get('returnHs', True)):
         mh = Chem.RemoveHs(mh)
