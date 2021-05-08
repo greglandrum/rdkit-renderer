@@ -1,26 +1,36 @@
 FROM debian:jessie
-MAINTAINER Greg Landrum <greg.landrum@gmail.com>
+MAINTAINER Greg Landrum <greg.landrum@t5informatics.com>
 
 # adapted from continuumio/miniconda3
 RUN apt-get update --fix-missing && apt-get install -y \
   wget \
   bzip2 \
   ca-certificates \
-  libc6
+  libc6 \
+  xorg-dev
 
 RUN echo 'export PATH=/opt/conda/bin:$PATH' > /etc/profile.d/conda.sh && \
-    wget --quiet https://repo.continuum.io/miniconda/Miniconda3-4.0.5-Linux-x86_64.sh && \
-    /bin/bash /Miniconda3-4.0.5-Linux-x86_64.sh -b -p /opt/conda && \
-    rm Miniconda3-4.0.5-Linux-x86_64.sh
+  wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-py37_4.8.3-Linux-x86_64.sh && \
+  /bin/bash /Miniconda3-py37_4.8.3-Linux-x86_64.sh -b -p /opt/conda && \
+  rm Miniconda3-py37_4.8.3-Linux-x86_64.sh
 
 ENV PATH /opt/conda/bin:$PATH
 ENV LANG C
 
 # actually do the conda install
-RUN conda config --add channels  https://conda.anaconda.org/greglandrum
-RUN conda install -y gunicorn flask cairo_nox nomkl
-RUN conda install -y rdkit boost=1.56
-RUN pip install flasgger
+#RUN conda config --add channels  https://conda.anaconda.org/greglandrum
+RUN conda config --set auto_update_conda false
+RUN conda install -y gunicorn flask nomkl
+# RUN conda config --append channels conda-forge
+RUN conda install -y conda-forge::flasgger
+# RUN conda install -y -c conda-forge cairo
+# RUN conda install -y -c conda-forge rdkit
+RUN conda install -y -c rdkit/label/nightly rdkit
+RUN conda install conda-forge::cairo
+
+ARG FORCE_REBUILD=unknown
+
+RUN FORCE_REBUILD=${FORCE_REBUILD} conda install -y -c rdkit/label/nightly rdkit
 COPY . /src
 
 EXPOSE 8000
