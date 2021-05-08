@@ -234,8 +234,15 @@ def _drawHelper(mol,drawer,**kwargs):
     mc = rdMolDraw2D.PrepareMolForDrawing(mol,kekulize=kekulize&sanit,
                                           addChiralHs=sanit)
     drawo = drawer.drawOptions()
-    if _stringtobool(tgt.get('dummiesAreAttachments',False)):
-        drawo.dummiesAreAttachments = True
+    for opt,default in (('dummiesAreAttachments',False),
+       ('comicMode',False),('addAtomIndices',False),('addBondIndices',False),
+       ('isotopeLabels',True),('addStereoAnnotation',False),
+       ('explicitMethyl',False),('includeChiralFlagLabel',False),
+       ('simplifiedStereoGroupLabel',False)):
+      setattr(drawo,opt,_stringtobool(tgt.get(opt,default)))
+
+    if drawo.addStereoAnnotation:
+      Chem.FindMolChiralCenters(mc,force=True,useLegacyImplementation=False)
 
     # if 'lw' in kwargs:
     #     drawer.SetLineWidth(int(lw))
@@ -308,6 +315,54 @@ def to_png():
         required: false
         default: true
         description: determines whether or not Hs are removed from the molecule before being rendered
+      - name: comicMode
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not comic mode is used to render the molecule
+      - name: addAtomIndices
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not atom indices are included
+      - name: addBondIndices
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not bond indices are included
+      - name: isotopeLabels
+        in: query
+        type: boolean
+        required: false
+        default: true
+        description: determines whether or not isotopes are labeled
+      - name: addStereoAnnotation
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not stereo annotations are included
+      - name: explicitMethyl
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not terminal methyls are labeled
+      - name: includeChiralFlagLabel
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not an "ABS" flag is added when the chiral flag is set
+      - name: simplifiedStereoGroupLabel
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not stereo groups are simplified before rendering
       - name: legend
         in: query
         type: string
@@ -418,6 +473,54 @@ def to_svg():
         required: false
         default: true
         description: determines whether or not Hs are removed from the molecule before being rendered
+      - name: comicMode
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not comic mode is used to render the molecule
+      - name: addAtomIndices
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not atom indices are included
+      - name: addBondIndices
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not bond indices are included
+      - name: isotopeLabels
+        in: query
+        type: boolean
+        required: false
+        default: true
+        description: determines whether or not isotopes are labeled
+      - name: addStereoAnnotation
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not stereo annotations are included
+      - name: explicitMethyl
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not terminal methyls are labeled
+      - name: includeChiralFlagLabel
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not an "ABS" flag is added when the chiral flag is set
+      - name: simplifiedStereoGroupLabel
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not stereo groups are simplified before rendering
       - name: legend
         in: query
         type: string
