@@ -1,4 +1,25 @@
 #
+# Copyright (C) 2016-2021 Greg Landrum
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+#
 #  Created by Greg Landrum (greg.landrum@t5informatics.com), Feb 2016
 #
 from flask import Flask, make_response, request, jsonify
@@ -22,7 +43,7 @@ if Swagger is not None:
     Swagger(app)
 
 
-# error handline example from the Flask docs
+# error handling example from the Flask docs
 # (http://flask.pocoo.org/docs/0.10/patterns/apierrors/)
 class InvalidUsage(Exception):
     status_code = 400
@@ -714,7 +735,7 @@ def _gen3d_sdf(mol, **kwargs):
 
     mh = Chem.AddHs(mol)
     mh.SetProp("_Name", "2D to 3D output")
-    ps = AllChem.ETKDG()
+    ps = AllChem.ETKDGv3()
     ps.randomSeed = seed
     cid = AllChem.EmbedMolecule(mh, ps)
     if cid < 0:
