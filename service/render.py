@@ -28,6 +28,7 @@ try:
 except ImportError:
     Swagger = None
 
+from rdkit import RDConfig
 from rdkit import Chem
 from rdkit import rdBase
 from rdkit.Chem import AllChem
@@ -37,6 +38,7 @@ from rdkit.Chem import rdAbbreviations
 from io import StringIO
 import json
 import sys
+import os
 
 Chem.WrapLogs()
 app = Flask(__name__)
@@ -304,7 +306,9 @@ def _drawHelper(mol, drawer, **kwargs):
                                    False), ('includeChiralFlagLabel', False),
                          ('simplifiedStereoGroupLabel', False)):
         setattr(drawo, opt, _stringtobool(tgt.get(opt, default)))
-
+    if drawo.comicMode:
+        drawo.fontFile = os.path.join(RDConfig.RDDataDir, "Fonts",
+                                      "ComicNeue-Regular.ttf")
     if drawo.addStereoAnnotation:
         Chem.FindMolChiralCenters(mol,
                                   force=True,
@@ -321,10 +325,6 @@ def _drawHelper(mol, drawer, **kwargs):
         drawo.addBondIndices = True
     if _stringtobool(tgt.get('useBW', False)):
         drawo.useBWAtomPalette()
-    if _stringtobool(tgt.get('includeStereoLabels', '0')):
-        from rdkit.Chem import rdCIPLabeler
-        rdCIPLabeler.AssignCIPLabels(mol)
-        drawo.addStereoAnnotation = True
 
     if _stringtobool(tgt.get('useGrid', '0')):
         frags = []
