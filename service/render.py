@@ -784,7 +784,7 @@ def to_svg():
     """
     mol = _molfromrequest()
     response = make_response(_render(mol, _moltosvg))
-    #response.headers['Content-Type'] = 'image/svg+xml'
+    response.headers['Content-Type'] = 'image/svg+xml'
     return response
 
 
