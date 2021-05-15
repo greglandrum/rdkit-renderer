@@ -1,4 +1,25 @@
 #
+# Copyright (C) 2016-2021 Greg Landrum
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+#
 #  Created by Greg Landrum (greg.landrum@t5informatics.com), Feb 2016
 #
 from flask import Flask, make_response, request, jsonify
@@ -23,7 +44,7 @@ if Swagger is not None:
     Swagger(app)
 
 
-# error handline example from the Flask docs
+# error handling example from the Flask docs
 # (http://flask.pocoo.org/docs/0.10/patterns/apierrors/)
 class InvalidUsage(Exception):
     status_code = 400
@@ -71,7 +92,8 @@ def health():
                 type: string
                 description: The version of python being used
       '''
-    res = dict(rdkitVersion=rdBase.rdkitVersion, boostVersion=rdBase.boostVersion,
+    res = dict(rdkitVersion=rdBase.rdkitVersion,
+               boostVersion=rdBase.boostVersion,
                pythonVersion=sys.version)
     return json.dumps(res)
 
@@ -95,26 +117,28 @@ def _molfromrequest():
     isMol = True
     if 'smiles' in tgt:
         if asRxn:
-            mol = AllChem.ReactionFromSmarts(
-                tgt.get('smiles'), useSmiles=not asSmarts)
+            mol = AllChem.ReactionFromSmarts(tgt.get('smiles'),
+                                             useSmiles=not asSmarts)
         elif asSmarts:
             mol = Chem.MolFromSmarts(tgt.get('smiles'))
             sanitize = False
         else:
             mol = Chem.MolFromSmiles(tgt.get('smiles'), sanitize=sanitize)
     elif 'mol' in tgt:
-        mol = Chem.MolFromMolBlock(
-            tgt.get('mol'), sanitize=sanitize, removeHs=removeHs)
+        mol = Chem.MolFromMolBlock(tgt.get('mol'),
+                                   sanitize=sanitize,
+                                   removeHs=removeHs)
     else:
-        raise InvalidUsage(
-            "Neither 'smiles' nor 'mol' present.", status_code=410)
+        raise InvalidUsage("Neither 'smiles' nor 'mol' present.",
+                           status_code=410)
 
     if mol is None:
         errm = sio.getvalue()
         # some errors leave blank lines
         errm = errm.replace('RDKit ERROR: \n', '')
-        raise InvalidUsage("Molecule could not be processed. Error message was:\n%s" % errm,
-                           status_code=411)
+        raise InvalidUsage(
+            "Molecule could not be processed. Error message was:\n%s" % errm,
+            status_code=411)
     if not sanitize and not asRxn:
         mol.UpdatePropertyCache(False)
         Chem.FastFindRings(mol)
@@ -148,8 +172,9 @@ def _queryfromrequest(suffix='_query'):
         errm = sio.getvalue()
         # some errors leave blank lines
         errm = errm.replace('RDKit ERROR: \n', '')
-        raise InvalidUsage("Molecule could not be processed. Error message was:\n%s" % errm,
-                           status_code=411)
+        raise InvalidUsage(
+            "Molecule could not be processed. Error message was:\n%s" % errm,
+            status_code=411)
     return mol
 
 
@@ -197,6 +222,7 @@ def _loadJSONParam(text):
     if not text:
         return None
     return json.loads(text)
+
 
 def _drawHelper(mol, drawer, **kwargs):
     tgt = request.get_json()
@@ -255,8 +281,9 @@ def _drawHelper(mol, drawer, **kwargs):
                         hbd = kwargs.get('highlightBondColors', {})
                         emap = dict(enumerate(entry))
                         for bond in qmol.GetBonds():
-                            mbond = mol.GetBondBetweenAtoms(emap[bond.GetBeginAtomIdx()],
-                                                            emap[bond.GetEndAtomIdx()])
+                            mbond = mol.GetBondBetweenAtoms(
+                                emap[bond.GetBeginAtomIdx()],
+                                emap[bond.GetEndAtomIdx()])
                             highlightBonds.append(mbond.GetIdx())
                             hbd[mbond.GetIdx()] = highlightColor
                         kwargs['highlightBondColors'] = hbd
@@ -269,49 +296,60 @@ def _drawHelper(mol, drawer, **kwargs):
     rdDepictor.SetPreferCoordGen(True)
     # print(Chem.MolToMolBlock(mc))
     drawo = drawer.drawOptions()
-    if _stringtobool(tgt.get('dummiesAreAttachments', False)):
-        drawo.dummiesAreAttachments = True
+    for opt, default in (('dummiesAreAttachments', False),
+                         ('comicMode', False), ('addAtomIndices', False),
+                         ('addBondIndices', False), ('isotopeLabels', True),
+                         ('addStereoAnnotation',
+                          False), ('explicitMethyl',
+                                   False), ('includeChiralFlagLabel', False),
+                         ('simplifiedStereoGroupLabel', False)):
+        setattr(drawo, opt, _stringtobool(tgt.get(opt, default)))
+
+    if drawo.addStereoAnnotation:
+        Chem.FindMolChiralCenters(mol,
+                                  force=True,
+                                  useLegacyImplementation=False)
 
     if 'backgroundColor' in tgt:
         tmp = _loadJSONParam(tgt.get('backgroundColor', None))
 
         drawo.SetBackgroundColor(tuple)
 
-    if _stringtobool(tgt.get('atomIndices',False)):
-      drawo.addAtomIndices = True
-    if _stringtobool(tgt.get('bondIndices',False)):
-      drawo.addBondIndices = True
-
-    if _stringtobool(tgt.get('useBW',False)):
-      drawo.useBWAtomPalette()
-
+    if _stringtobool(tgt.get('atomIndices', False)):
+        drawo.addAtomIndices = True
+    if _stringtobool(tgt.get('bondIndices', False)):
+        drawo.addBondIndices = True
+    if _stringtobool(tgt.get('useBW', False)):
+        drawo.useBWAtomPalette()
     if _stringtobool(tgt.get('includeStereoLabels', '0')):
-      from rdkit.Chem import rdCIPLabeler
-      rdCIPLabeler.AssignCIPLabels(mol)
-      drawo.addStereoAnnotation = True
+        from rdkit.Chem import rdCIPLabeler
+        rdCIPLabeler.AssignCIPLabels(mol)
+        drawo.addStereoAnnotation = True
 
-    # if 'lw' in kwargs:
-    #     drawer.SetLineWidth(int(lw))
     if _stringtobool(tgt.get('useGrid', '0')):
         frags = []
         for frag in Chem.GetMolFrags(mol, asMols=True):
-            frags.append(rdMolDraw2D.PrepareMolForDrawing(frag,
-                                                          kekulize=kekulize & sanit,
-                                                          addChiralHs=sanit))
+            frags.append(
+                rdMolDraw2D.PrepareMolForDrawing(frag,
+                                                 kekulize=kekulize & sanit,
+                                                 addChiralHs=sanit))
 
         drawer.DrawMolecules(frags)
     elif _stringtobool(tgt.get('asRxn', False)):
         drawer.DrawReaction(mol)
     else:
-        mc = rdMolDraw2D.PrepareMolForDrawing(
-            mol, kekulize=kekulize & sanit, addChiralHs=sanit)
+        mc = rdMolDraw2D.PrepareMolForDrawing(mol,
+                                              kekulize=kekulize & sanit,
+                                              addChiralHs=sanit)
         mc.SetProp("_Name", "temp")
         if _stringtobool(tgt.get('collapseAbbreviations',False)) and \
             len(Chem.GetMolSubstanceGroups(mc)):
             mc = rdAbbreviations.CondenseAbbreviationSubstanceGroups(mc)
-        elif _stringtobool(tgt.get('findAbbreviations',False)):
-            mc = rdAbbreviations.CondenseMolAbbreviations(mc,rdAbbreviations.GetDefaultAbbreviations(),
-                                                          maxCoverage=float(tgt.get('maxAbbreviationCoverage',0.4)))
+        elif _stringtobool(tgt.get('findAbbreviations', False)):
+            mc = rdAbbreviations.CondenseMolAbbreviations(
+                mc,
+                rdAbbreviations.GetDefaultAbbreviations(),
+                maxCoverage=float(tgt.get('maxAbbreviationCoverage', 0.4)))
         drawer.DrawMolecule(mc, **kwargs)
     drawer.FinishDrawing()
 
@@ -322,14 +360,14 @@ def _moltosvg(mol, molSize=(450, 200), drawer=None, **kwargs):
         if tgt is None:
             tgt = request.values
         if _stringtobool(tgt.get('useGrid', '0')):
-            print("grid")
             nMols = len(Chem.GetMolFrags(mol))
             nCols = int(tgt.get('molsPerRow', 3))
             nRows = nMols // nCols
             if nMols % nCols:
                 nRows += 1
-            drawer = rdMolDraw2D.MolDraw2DSVG(
-                molSize[0]*nCols, molSize[1]*nRows, molSize[0], molSize[1])
+            drawer = rdMolDraw2D.MolDraw2DSVG(molSize[0] * nCols,
+                                              molSize[1] * nRows, molSize[0],
+                                              molSize[1])
         else:
             drawer = rdMolDraw2D.MolDraw2DSVG(molSize[0], molSize[1])
     _drawHelper(mol, drawer, **kwargs)
@@ -343,14 +381,14 @@ def _moltopng(mol, molSize=(450, 200), drawer=None, **kwargs):
         if tgt is None:
             tgt = request.values
         if _stringtobool(tgt.get('useGrid', '0')):
-            print("grid")
             nMols = len(Chem.GetMolFrags(mol))
             nCols = int(tgt.get('molsPerRow', 3))
             nRows = nMols // nCols
             if nMols % nCols:
                 nRows += 1
-            drawer = rdMolDraw2D.MolDraw2DCairo(
-                molSize[0]*nCols, molSize[1]*nRows, molSize[0], molSize[1])
+            drawer = rdMolDraw2D.MolDraw2DCairo(molSize[0] * nCols,
+                                                molSize[1] * nRows, molSize[0],
+                                                molSize[1])
         else:
             drawer = rdMolDraw2D.MolDraw2DCairo(molSize[0], molSize[1])
     _drawHelper(mol, drawer, **kwargs)
@@ -363,8 +401,9 @@ def _render(mol, renderer, size=(150, 100), **kwargs):
         tgt = request.values
     asRxn = _stringtobool(tgt.get('asRxn', False))
     if 'w' not in tgt and asRxn:
-      s0 = size[0]*(mol.GetNumReactantTemplates()+mol.GetNumProductTemplates()+1)
-      size = (s0,size[1])
+        s0 = size[0] * (mol.GetNumReactantTemplates() +
+                        mol.GetNumProductTemplates() + 1)
+        size = (s0, size[1])
     sz = int(tgt.get('w', size[0])), int(tgt.get('h', size[1]))
     return renderer(mol, molSize=sz, **kwargs)
 
@@ -372,169 +411,187 @@ def _render(mol, renderer, size=(150, 100), **kwargs):
 @app.route('/to_img/mol.png', methods=['GET', 'POST'])
 def to_png():
     """
-      Returns a PNG rendering of a molecule
-      ---
-      parameters:
-        - name: smiles
-          in: query
-          type: string
-          required: false
-          description: input SMILES. Provide either this or mol
-        - name: mol
-          in: query
-          type: string
-          required: false
-          description: input CTAB. Provide either this or smiles
-        - name: w
-          in: query
-          type: integer
-          required: false
-          default: 150
-          description: image width
-        - name: h
-          in: query
-          type: integer
-          required: false
-          default: 100
-          description: image height
-        - name: kekulize
-          in: query
-          type: boolean
-          required: false
-          default: true
-          description: determines whether or not the molecule is kekulized before being rendered
-        - name: sanitize
-          in: query
-          type: boolean
-          required: false
-          default: true
-          description: determines whether or not the molecule is sanitized before being rendered
-        - name: removeHs
-          in: query
-          type: boolean
-          required: false
-          default: true
-          description: determines whether or not Hs are removed from the molecule before being rendered
-        - name: legend
-          in: query
-          type: string
-          required: false
-          description: text to be displayed beneath the molecule
-        - name: highlightSubstruct
-          in: query
-          type: boolean
-          required: false
-          default: false
-          description: indicates that substructure highlighting should be done
-        - name: atomIndicess
-          in: query
-          type: boolean
-          required: false
-          default: false
-          description: indicates that atom indices should be shown      
-        - name: bondIndices
-          in: query
-          type: boolean
-          required: false
-          default: false
-          description: indicates that bond indices should be shown
-        - name: smiles_highlight
-          in: query
-          type: string
-          required: false
-          description: SMILES describing the query to highlight. If highlightSubstruct is set you should provide this, smarts_highlight, or mol_highlight
-        - name: smarts_highlight
-          in: query
-          type: string
-          required: false
-          description: SMARTS describing the query to highlight. If highlightSubstruct is set you should provide this, smiles_highlight, or mol_highlight
-        - name: mol_highlight
-          in: query
-          type: string
-          required: false
-          description: CTAB describing the query to highlight. If highlightSubstruct is set you should provide this, smarts_highlight, or smiles_highlight
-        - name: highlightAtoms
-          in: query
-          type: array
-          items:
-              type: integer
-              description: indices (0-based) of the atoms to highlight
-          required: false
-          description: atoms to be highlighted (as a JSON array)
-        - name: highlightBonds
-          in: query
-          type: array
-          items:
-              type: integer
-              description: indices (0-based) of the bonds to highlight
-          required: false
-          description: bonds to be highlighted (as a JSON array)
-        - name: dummiesAreAttachments
-          in: query
-          type: boolean
-          required: false
-          default: false
-          description: if true, dummy atoms are drawn as attachment points (with a squiggle line instead of an atom symbol)
-        - name: asRxn
-          in: query
-          type: boolean
-          required: false
-          default: false
-          description: if true, the input will be treated as a reaction, not a molecule
-        - name: useGrid
-          in: query
-          type: boolean
-          required: false
-          default: false
-          description: if true, draws multiple molecules using a grid
-        - name: molsPerRow
-          in: query
-          type: integer
-          required: false
-          default: 3
-          description: sets the number of columns in the grid
-        - name: includeStereoLabels
-          in: query
-          type: boolean
-          required: false
-          default: false
-          description: if true, includes stereo labels in the drawing
-        - name: useBW
-          in: query
-          type: boolean
-          required: false
-          default: false
-          description: if true, draws atoms and bonds in black and white
-        - name: condenseAbbreviations
-          in: query
-          type: boolean
-          required: false
-          default: false
-          description: if true, condenses any superatoms/abbreviations that are defined in the input
-        - name: findAbbreviations
-          in: query
-          type: boolean
-          required: false
-          default: false
-          description: if true, identifies and condenses any groups that can be abbreviated in the input
-        - name: maxAbbreviationCoverage
-          in: query
-          type: number
-          required: false
-          default: 0.4
-          description: the maximum fraction of the molecule that can be covered by an abbreviation with findAbbreviations is true
-      produces:
-          image/png
-      responses:
-        500:
-          description: Error!
-        410:
-          description: no molecule data provided
-        411:
-          description: input molecule could not be processed
-        200:
-          description: Everything is fine
-      """
+    Returns a PNG rendering of a molecule
+    ---
+    parameters:
+      - name: smiles
+        in: query
+        type: string
+        required: false
+        description: input SMILES. Provide either this or mol
+      - name: mol
+        in: query
+        type: string
+        required: false
+        description: input CTAB. Provide either this or smiles
+      - name: w
+        in: query
+        type: integer
+        required: false
+        default: 150
+        description: image width
+      - name: h
+        in: query
+        type: integer
+        required: false
+        default: 100
+        description: image height
+      - name: kekulize
+        in: query
+        type: boolean
+        required: false
+        default: true
+        description: determines whether or not the molecule is kekulized before being rendered
+      - name: sanitize
+        in: query
+        type: boolean
+        required: false
+        default: true
+        description: determines whether or not the molecule is sanitized before being rendered
+      - name: removeHs
+        in: query
+        type: boolean
+        required: false
+        default: true
+        description: determines whether or not Hs are removed from the molecule before being rendered
+      - name: comicMode
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not comic mode is used to render the molecule
+      - name: addAtomIndices
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not atom indices are included
+      - name: addBondIndices
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not bond indices are included
+      - name: isotopeLabels
+        in: query
+        type: boolean
+        required: false
+        default: true
+        description: determines whether or not isotopes are labeled
+      - name: addStereoAnnotation
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not stereo annotations are included
+      - name: explicitMethyl
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not terminal methyls are labeled
+      - name: includeChiralFlagLabel
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not an "ABS" flag is added when the chiral flag is set
+      - name: simplifiedStereoGroupLabel
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not stereo groups are simplified before rendering
+      - name: legend
+        in: query
+        type: string
+        required: false
+        description: text to be displayed beneath the molecule
+      - name: highlightSubstruct
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: indicates that substructure highlighting should be done
+      - name: smiles_highlight
+        in: query
+        type: string
+        required: false
+        description: SMILES describing the query to highlight. If highlightSubstruct is set you should provide this, smarts_highlight, or mol_highlight
+      - name: smarts_highlight
+        in: query
+        type: string
+        required: false
+        description: SMARTS describing the query to highlight. If highlightSubstruct is set you should provide this, smiles_highlight, or mol_highlight
+      - name: mol_highlight
+        in: query
+        type: string
+        required: false
+        description: CTAB describing the query to highlight. If highlightSubstruct is set you should provide this, smarts_highlight, or smiles_highlight
+      - name: highlightAtoms
+        in: query
+        type: array
+        items:
+            type: integer
+            description: indices (0-based) of the atoms to highlight
+        required: false
+        description: atoms to be highlighted (as a JSON array)
+      - name: highlightBonds
+        in: query
+        type: array
+        items:
+            type: integer
+            description: indices (0-based) of the bonds to highlight
+        required: false
+        description: bonds to be highlighted (as a JSON array)
+      - name: dummiesAreAttachments
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: if true, dummy atoms are drawn as attachment points (with a squiggle line instead of an atom symbol)
+      - name: useGrid
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: if true molecule fragments are layed out on a grid
+      - name: useBW
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: if true, draws atoms and bonds in black and white
+      - name: condenseAbbreviations
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: if true, condenses any superatoms/abbreviations that are defined in the input
+      - name: findAbbreviations
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: if true, identifies and condenses any groups that can be abbreviated in the input
+      - name: maxAbbreviationCoverage
+        in: query
+        type: number
+        required: false
+        default: 0.4
+        description: the maximum fraction of the molecule that can be covered by an abbreviation with findAbbreviations is true
+    produces:
+        image/png
+    responses:
+      500:
+        description: Error!
+      410:
+        description: no molecule data provided
+      411:
+        description: input molecule could not be processed
+      200:
+        description: Everything is fine
+    """
     mol = _molfromrequest()
     response = make_response(_render(mol, _moltopng))
     response.headers['Content-Type'] = 'image/png'
@@ -544,169 +601,187 @@ def to_png():
 @app.route('/to_img/mol.svg', methods=['GET', 'POST'])
 def to_svg():
     """
-      Returns a SVG rendering of a molecule
-      ---
-      parameters:
-        - name: smiles
-          in: query
-          type: string
-          required: false
-          description: input SMILES. Provide either this or mol
-        - name: mol
-          in: query
-          type: string
-          required: false
-          description: input CTAB. Provide either this or smiles
-        - name: w
-          in: query
-          type: integer
-          required: false
-          default: 150
-          description: image width
-        - name: h
-          in: query
-          type: integer
-          required: false
-          default: 100
-          description: image height
-        - name: kekulize
-          in: query
-          type: boolean
-          required: false
-          default: true
-          description: determines whether or not the molecule is kekulized before being rendered
-        - name: sanitize
-          in: query
-          type: boolean
-          required: false
-          default: true
-          description: determines whether or not the molecule is sanitized before being rendered
-        - name: removeHs
-          in: query
-          type: boolean
-          required: false
-          default: true
-          description: determines whether or not Hs are removed from the molecule before being rendered
-        - name: legend
-          in: query
-          type: string
-          required: false
-          description: text to be displayed beneath the molecule
-        - name: highlightSubstruct
-          in: query
-          type: boolean
-          required: false
-          default: false
-          description: indicates that substructure highlighting should be done
-        - name: atomIndicess
-          in: query
-          type: boolean
-          required: false
-          default: false
-          description: indicates that atom indices should be shown      
-        - name: bondIndices
-          in: query
-          type: boolean
-          required: false
-          default: false
-          description: indicates that bond indices should be shown
-        - name: smiles_highlight
-          in: query
-          type: string
-          required: false
-          description: SMILES describing the query to highlight. If highlightSubstruct is set you should provide this, smarts_highlight, or mol_highlight
-        - name: smarts_highlight
-          in: query
-          type: string
-          required: false
-          description: SMARTS describing the query to highlight. If highlightSubstruct is set you should provide this, smiles_highlight, or mol_highlight
-        - name: mol_highlight
-          in: query
-          type: string
-          required: false
-          description: CTAB describing the query to highlight. If highlightSubstruct is set you should provide this, smarts_highlight, or smiles_highlight
-        - name: highlightAtoms
-          in: query
-          type: array
-          items:
-              type: integer
-              description: indices (0-based) of the atoms to highlight
-          required: false
-          description: atoms to be highlighted (as a JSON array)
-        - name: highlightBonds
-          in: query
-          type: array
-          items:
-              type: integer
-              description: indices (0-based) of the bonds to highlight
-          required: false
-          description: bonds to be highlighted (as a JSON array)
-        - name: dummiesAreAttachments
-          in: query
-          type: boolean
-          required: false
-          default: false
-          description: if true, dummy atoms are drawn as attachment points (with a squiggle line instead of an atom symbol)
-        - name: asRxn
-          in: query
-          type: boolean
-          required: false
-          default: false
-          description: if true, the input will be treated as a reaction, not a molecule
-        - name: useGrid
-          in: query
-          type: boolean
-          required: false
-          default: false
-          description: if true, draws multiple molecules using a grid
-        - name: molsPerRow
-          in: query
-          type: integer
-          required: false
-          default: 3
-          description: sets the number of columns in the grid
-        - name: includeStereoLabels
-          in: query
-          type: boolean
-          required: false
-          default: false
-          description: if true, includes stereo labels in the drawing
-        - name: useBW
-          in: query
-          type: boolean
-          required: false
-          default: false
-          description: if true, draws atoms and bonds in black and white
-        - name: collapseAbbreviations
-          in: query
-          type: boolean
-          required: false
-          default: false
-          description: if true, collapses any superatoms/abbreviations that are defined in the input
-        - name: findAbbreviations
-          in: query
-          type: boolean
-          required: false
-          default: false
-          description: if true, identifies and collapses any groups that can be abbreviated in the input
-        - name: maxAbbreviationCoverage
-          in: query
-          type: number
-          required: false
-          default: 0.4
-          description: the maximum fraction of the molecule that can be covered by an abbreviation with findAbbreviations is true
-      produces:
-          image/svg+xml
-      responses:
-        500:
-          description: Error!
-        410:
-          description: no molecule data provided
-        411:
-          description: input molecule could not be processed
-        200:
-          description: Everything is fine
-      """
+    Returns a SVG rendering of a molecule
+    ---
+    parameters:
+      - name: smiles
+        in: query
+        type: string
+        required: false
+        description: input SMILES. Provide either this or mol
+      - name: mol
+        in: query
+        type: string
+        required: false
+        description: input CTAB. Provide either this or smiles
+      - name: w
+        in: query
+        type: integer
+        required: false
+        default: 150
+        description: image width
+      - name: h
+        in: query
+        type: integer
+        required: false
+        default: 100
+        description: image height
+      - name: kekulize
+        in: query
+        type: boolean
+        required: false
+        default: true
+        description: determines whether or not the molecule is kekulized before being rendered
+      - name: sanitize
+        in: query
+        type: boolean
+        required: false
+        default: true
+        description: determines whether or not the molecule is sanitized before being rendered
+      - name: removeHs
+        in: query
+        type: boolean
+        required: false
+        default: true
+        description: determines whether or not Hs are removed from the molecule before being rendered
+      - name: comicMode
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not comic mode is used to render the molecule
+      - name: addAtomIndices
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not atom indices are included
+      - name: addBondIndices
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not bond indices are included
+      - name: isotopeLabels
+        in: query
+        type: boolean
+        required: false
+        default: true
+        description: determines whether or not isotopes are labeled
+      - name: addStereoAnnotation
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not stereo annotations are included
+      - name: explicitMethyl
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not terminal methyls are labeled
+      - name: includeChiralFlagLabel
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not an "ABS" flag is added when the chiral flag is set
+      - name: simplifiedStereoGroupLabel
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: determines whether or not stereo groups are simplified before rendering
+      - name: legend
+        in: query
+        type: string
+        required: false
+        description: text to be displayed beneath the molecule
+      - name: highlightSubstruct
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: indicates that substructure highlighting should be done
+      - name: smiles_highlight
+        in: query
+        type: string
+        required: false
+        description: SMILES describing the query to highlight. If highlightSubstruct is set you should provide this, smarts_highlight, or mol_highlight
+      - name: smarts_highlight
+        in: query
+        type: string
+        required: false
+        description: SMARTS describing the query to highlight. If highlightSubstruct is set you should provide this, smiles_highlight, or mol_highlight
+      - name: mol_highlight
+        in: query
+        type: string
+        required: false
+        description: CTAB describing the query to highlight. If highlightSubstruct is set you should provide this, smarts_highlight, or smiles_highlight
+      - name: highlightAtoms
+        in: query
+        type: array
+        items:
+            type: integer
+            description: indices (0-based) of the atoms to highlight
+        required: false
+        description: atoms to be highlighted (as a JSON array)
+      - name: highlightBonds
+        in: query
+        type: array
+        items:
+            type: integer
+            description: indices (0-based) of the bonds to highlight
+        required: false
+        description: bonds to be highlighted (as a JSON array)
+      - name: dummiesAreAttachments
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: if true, dummy atoms are drawn as attachment points (with a squiggle line instead of an atom symbol)
+      - name: useGrid
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: if true molecule fragments are layed out on a grid
+      - name: useBW
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: if true, draws atoms and bonds in black and white
+      - name: condenseAbbreviations
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: if true, condenses any superatoms/abbreviations that are defined in the input
+      - name: findAbbreviations
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: if true, identifies and condenses any groups that can be abbreviated in the input
+      - name: maxAbbreviationCoverage
+        in: query
+        type: number
+        required: false
+        default: 0.4
+        description: the maximum fraction of the molecule that can be covered by an abbreviation with findAbbreviations is true
+    produces:
+        image/svg+xml
+    responses:
+      500:
+        description: Error!
+      410:
+        description: no molecule data provided
+      411:
+        description: input molecule could not be processed
+      200:
+        description: Everything is fine
+    """
     mol = _molfromrequest()
     response = make_response(_render(mol, _moltosvg))
     #response.headers['Content-Type'] = 'image/svg+xml'
@@ -723,7 +798,7 @@ def _gen3d_sdf(mol, **kwargs):
 
     mh = Chem.AddHs(mol)
     mh.SetProp("_Name", "2D to 3D output")
-    ps = AllChem.ETKDG()
+    ps = AllChem.ETKDGv3()
     ps.randomSeed = seed
     cid = AllChem.EmbedMolecule(mh, ps)
     if cid < 0:
@@ -732,8 +807,8 @@ def _gen3d_sdf(mol, **kwargs):
         try:
             AllChem.MMFFOptimizeMolecule(mh)
         except:
-            raise InvalidUsage(
-                "Molecule could not be minimized.", status_code=419)
+            raise InvalidUsage("Molecule could not be minimized.",
+                               status_code=419)
 
     if not _stringtobool(tgt.get('returnHs', True)):
         mh = Chem.RemoveHs(mh)

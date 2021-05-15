@@ -1,38 +1,14 @@
-FROM debian:jessie
-MAINTAINER Greg Landrum <greg.landrum@t5informatics.com>
+FROM condaforge/mambaforge
+LABEL maintainer="Greg Landrum <greg.landrum@t5informatics.com>"
 
-# adapted from continuumio/miniconda3
-RUN apt-get update --fix-missing && apt-get install -y \
-  wget \
-  bzip2 \
-  ca-certificates \
-  libc6 \
-  xorg-dev
-
-RUN echo 'export PATH=/opt/conda/bin:$PATH' > /etc/profile.d/conda.sh && \
-  wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-py37_4.8.3-Linux-x86_64.sh && \
-  /bin/bash /Miniconda3-py37_4.8.3-Linux-x86_64.sh -b -p /opt/conda && \
-  rm Miniconda3-py37_4.8.3-Linux-x86_64.sh
-
-ENV PATH /opt/conda/bin:$PATH
 ENV LANG C
 
 # actually do the conda install
-#RUN conda config --add channels  https://conda.anaconda.org/greglandrum
 RUN conda config --set auto_update_conda false
-RUN conda install -y gunicorn flask nomkl
-# RUN conda config --append channels conda-forge
-RUN conda install -y conda-forge::flasgger
-# RUN conda install -y -c conda-forge cairo
-# RUN conda install -y -c conda-forge rdkit
-# RUN conda install -y -c rdkit/label/nightly rdkit
-# RUN conda install conda-forge::cairo
-RUN conda install -y conda-forge::rdkit
-
+RUN mamba install -y gunicorn flask nomkl flasgger
 ARG FORCE_REBUILD=unknown
 
-#RUN FORCE_REBUILD=${FORCE_REBUILD} conda install -y -c rdkit/label/nightly rdkit
-RUN FORCE_REBUILD=${FORCE_REBUILD} conda install -y conda-forge::rdkit
+RUN FORCE_REBUILD=${FORCE_REBUILD} mamba install -y rdkit
 COPY . /src
 
 EXPOSE 8000
