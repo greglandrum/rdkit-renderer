@@ -33,6 +33,7 @@ from rdkit import rdBase
 from rdkit.Chem import AllChem
 from rdkit.Chem import rdDepictor
 from rdkit.Chem.Draw import rdMolDraw2D
+from rdkit.Chem import rdAbbreviations
 from io import StringIO
 import json
 import sys
@@ -318,6 +319,8 @@ def _drawHelper(mol, drawer, **kwargs):
         drawo.addAtomIndices = True
     if _stringtobool(tgt.get('bondIndices', False)):
         drawo.addBondIndices = True
+    if _stringtobool(tgt.get('useBW', False)):
+        drawo.useBWAtomPalette()
 
     if _stringtobool(tgt.get('useGrid', '0')):
         frags = []
@@ -335,6 +338,14 @@ def _drawHelper(mol, drawer, **kwargs):
                                               kekulize=kekulize & sanit,
                                               addChiralHs=sanit)
         mc.SetProp("_Name", "temp")
+        if _stringtobool(tgt.get('collapseAbbreviations',False)) and \
+            len(Chem.GetMolSubstanceGroups(mc)):
+            mc = rdAbbreviations.CondenseAbbreviationSubstanceGroups(mc)
+        elif _stringtobool(tgt.get('findAbbreviations', False)):
+            mc = rdAbbreviations.CondenseMolAbbreviations(
+                mc,
+                rdAbbreviations.GetDefaultAbbreviations(),
+                maxCoverage=float(tgt.get('maxAbbreviationCoverage', 0.4)))
         drawer.DrawMolecule(mc, **kwargs)
     drawer.FinishDrawing()
 
@@ -541,6 +552,30 @@ def to_png():
         required: false
         default: false
         description: if true molecule fragments are layed out on a grid
+      - name: useBW
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: if true, draws atoms and bonds in black and white
+      - name: condenseAbbreviations
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: if true, condenses any superatoms/abbreviations that are defined in the input
+      - name: findAbbreviations
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: if true, identifies and condenses any groups that can be abbreviated in the input
+      - name: maxAbbreviationCoverage
+        in: query
+        type: number
+        required: false
+        default: 0.4
+        description: the maximum fraction of the molecule that can be covered by an abbreviation with findAbbreviations is true
     produces:
         image/png
     responses:
@@ -707,6 +742,30 @@ def to_svg():
         required: false
         default: false
         description: if true molecule fragments are layed out on a grid
+      - name: useBW
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: if true, draws atoms and bonds in black and white
+      - name: condenseAbbreviations
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: if true, condenses any superatoms/abbreviations that are defined in the input
+      - name: findAbbreviations
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: if true, identifies and condenses any groups that can be abbreviated in the input
+      - name: maxAbbreviationCoverage
+        in: query
+        type: number
+        required: false
+        default: 0.4
+        description: the maximum fraction of the molecule that can be covered by an abbreviation with findAbbreviations is true
     produces:
         image/svg+xml
     responses:
